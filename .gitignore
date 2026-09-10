@@ -15,7 +15,12 @@ __pycache__/
 # Environment / secrets
 .env
 .env.*
+!.env.example
 *.key
+
+# Baseline / experiment output
+baseline_results.csv
+runs/
 
 # Editor / OS
 .vscode/

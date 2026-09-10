@@ -6,11 +6,12 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 - [x] `ModelConfig` dataclass: provider, model ID, cost per input/output token, avg latency, quality tier
 - [x] `MODEL_REGISTRY` populated with GPT-4o, GPT-4o-mini, Claude Sonnet, Claude Haiku, local Llama (Ollama)
-- [ ] Real pricing verified against provider docs
-- [ ] `send_request(prompt, model_config)` returns a standardized `Response` (output text, input/output tokens, latency, cost, model ID) for all three providers
-- [ ] Credentials read from environment, not literals
-- [ ] Error handling + retries per provider
-- [ ] Baseline run: same 10 prompts through every model, log outputs / cost / latency
+- [x] Real pricing verified against provider docs (OpenAI + Anthropic first-party rates, Sep 2026)
+- [x] `send_request(prompt, model_config)` returns a standardized `Response` (output text, input/output tokens, latency, cost, model ID) for all three providers
+- [x] Credentials read from environment, not literals
+- [x] Error handling + retries per provider (`LLMRequestError`, exponential backoff, fast-fail on config errors)
+- [x] Baseline harness: `baseline.py` runs the 10-prompt set through every model -> `baseline_results.csv` + summary
+- [ ] Run the full baseline against live providers and commit the numbers / replace registry `avg_latency` placeholders
 
 ## Phase 2 — Complexity classifier
 

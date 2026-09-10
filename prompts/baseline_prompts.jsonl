@@ -1,0 +1,10 @@
+{"id": "t1-extract-email", "tier": 1, "prompt": "Extract the email address from this sentence and return only the address: 'Reach out to billing at accounts@northwind.example for invoice questions.'"}
+{"id": "t1-list-to-json", "tier": 1, "prompt": "Convert this comma-separated list into a JSON array of strings, nothing else: apples, oranges, pears, kiwis"}
+{"id": "t1-capital-qa", "tier": 1, "prompt": "What is the capital city of Australia? Answer with just the city name."}
+{"id": "t1-date-reformat", "tier": 1, "prompt": "Reformat this date as YYYY-MM-DD and output only the result: March 5, 2026"}
+{"id": "t2-summarize", "tier": 2, "prompt": "Summarize the following in one sentence: 'Remote work expanded sharply after 2020. Many firms now use hybrid schedules, with staff in the office two or three days a week. Studies show mixed effects on productivity but consistent gains in reported employee satisfaction.'"}
+{"id": "t2-sentiment", "tier": 2, "prompt": "Classify the sentiment of this review as positive, negative, or neutral, and reply with only that word: 'The package arrived three days late and the box was crushed on one side.'"}
+{"id": "t2-tradeoffs", "tier": 2, "prompt": "List three advantages and three disadvantages of using SQLite as the database for a small internal web app. Use two short bulleted lists."}
+{"id": "t3-word-problem", "tier": 3, "prompt": "Two trains start 180 miles apart on the same track heading toward each other. One travels at 60 mph, the other at 40 mph. How long until they meet? Show your reasoning step by step."}
+{"id": "t3-constrained-poem", "tier": 3, "prompt": "Write a four-line poem about a lighthouse. The poem must never mention the sea, water, waves, or the ocean."}
+{"id": "t3-plan-justify", "tier": 3, "prompt": "You have a $10,000 budget to reduce a company's monthly LLM API spend. Propose a prioritized three-step plan and justify why each step is ordered where it is."}

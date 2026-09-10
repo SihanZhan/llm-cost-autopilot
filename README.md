@@ -22,7 +22,7 @@ flowchart LR
     req[Incoming request] --> clf[Complexity classifier]
     clf -->|Tier 1: simple| cheap[Haiku / local Llama]
     clf -->|Tier 2: moderate| mid[GPT-4o-mini / Sonnet]
-    clf -->|Tier 3: complex| top[GPT-4o / Opus]
+    clf -->|Tier 3: complex| top[GPT-4o]
     cheap --> resp[Response + metadata]
     mid --> resp
     top --> resp
@@ -60,16 +60,32 @@ flowchart LR
 
 | Path | Purpose |
 |---|---|
-| [models.py](models.py) | `ModelConfig` dataclass + `MODEL_REGISTRY` with per-token pricing, latency, quality tier |
-| [llm_clients.py](llm_clients.py) | `Response` dataclass + `send_request(prompt, model_config)` unified provider interface |
+| [models.py](models.py) | `ModelConfig` dataclass + `MODEL_REGISTRY` with per-token pricing, latency, quality tier; `get_model()` / `models_by_tier()` lookups |
+| [llm_clients.py](llm_clients.py) | `Response` dataclass + `send_request(prompt, model_config)` — one interface over the OpenAI, Anthropic, and Ollama SDKs, with measured latency, computed cost, env-var credentials, and retry/backoff |
+| [baseline.py](baseline.py) | Runs the fixed prompt set through every model, writes `baseline_results.csv`, prints per-model cost/latency |
+| [prompts/baseline_prompts.jsonl](prompts/baseline_prompts.jsonl) | 10 labelled prompts spanning the three complexity tiers |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
 More modules (`classifier/`, `router/`, `eval/`, `api/`, `dashboard/`) land as
 the roadmap phases are built.
 
+## Baseline (Phase 1)
+
+Credentials are read from the environment (or a local `.env` — see
+[.env.example](.env.example)):
+
+```bash
+pip install -r requirements.txt
+python baseline.py            # all 10 prompts x every model
+python baseline.py --limit 2  # cheap smoke run
+```
+
+Models without credentials (or a running Ollama) are skipped with a note, so a
+partial run still produces data.
+
 ## Status
 
-Early work in progress — **Phase 1 (unified model interface)**. `send_request`
-still needs latency/cost wiring, env-var credentials, and error handling; the
-classifier, verifier, API, and dashboard are not built yet. See
-[ROADMAP.md](ROADMAP.md).
+**Phase 1 (unified model interface) — in progress.** The registry, the unified
+`send_request`, and the baseline harness are done; the full baseline run against
+live providers is still pending. The classifier, verifier, API, and dashboard
+are not built yet. See [ROADMAP.md](ROADMAP.md).
