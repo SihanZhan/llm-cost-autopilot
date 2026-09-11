@@ -85,7 +85,8 @@ partial run still produces data.
 
 ## Status
 
-**Phase 1 (unified model interface) — in progress.** The registry, the unified
-`send_request`, and the baseline harness are done; the full baseline run against
-live providers is still pending. The classifier, verifier, API, and dashboard
-are not built yet. See [ROADMAP.md](ROADMAP.md).
+**Phase 1 (unified model interface) — done.** Registry, unified `send_request`,
+baseline harness, and a live baseline run are all in place — see
+[docs/baseline_results.md](docs/baseline_results.md) (3 of 5 models measured
+live; `gpt-4o`/`gpt-4o-mini` pending a funded OpenAI account). The classifier,
+verifier, API, and dashboard are not built yet. See [ROADMAP.md](ROADMAP.md).

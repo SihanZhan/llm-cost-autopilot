@@ -11,7 +11,7 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 - [x] Credentials read from environment, not literals
 - [x] Error handling + retries per provider (`LLMRequestError`, exponential backoff, fast-fail on config errors)
 - [x] Baseline harness: `baseline.py` runs the 10-prompt set through every model -> `baseline_results.csv` + summary
-- [ ] Run the full baseline against live providers and commit the numbers / replace registry `avg_latency` placeholders
+- [x] Run the full baseline against live providers and commit the numbers / replace registry `avg_latency` placeholders — 3/5 models measured live (Anthropic x2, Ollama); `gpt-4o`/`gpt-4o-mini` still estimates pending a funded OpenAI account. See [docs/baseline_results.md](docs/baseline_results.md).
 
 ## Phase 2 — Complexity classifier
 

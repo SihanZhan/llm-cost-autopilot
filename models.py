@@ -3,8 +3,13 @@
 Costs are USD **per token** — take the provider's public "$ per 1M tokens"
 figure and divide by 1_000_000. Verified against OpenAI and Anthropic
 first-party pricing, September 2026. `avg_latency` is a rough seconds-per-call
-hint used only for routing; the Phase 1 baseline replaces these with measured
-numbers.
+hint used only for routing.
+
+Phase 1 baseline (2026-09-10, 10 prompts, see baseline_results.csv): Anthropic
+and Ollama entries below use measured averages. The OpenAI entries are still
+the original estimates — that account had no API credits at baseline time, so
+gpt-4o / gpt-4o-mini were skipped. Re-run `python baseline.py` and update
+those two once funded.
 """
 from __future__ import annotations
 
@@ -29,7 +34,7 @@ MODEL_REGISTRY = [
         model_id="gpt-4o",
         cost_per_input_token=2.50 / _PER_MILLION,
         cost_per_output_token=10.00 / _PER_MILLION,
-        avg_latency=1.5,
+        avg_latency=1.5,  # estimate - not measured, account had no credits at baseline time
         quality_tier="high",
     ),
     ModelConfig(
@@ -37,7 +42,7 @@ MODEL_REGISTRY = [
         model_id="gpt-4o-mini",
         cost_per_input_token=0.15 / _PER_MILLION,
         cost_per_output_token=0.60 / _PER_MILLION,
-        avg_latency=0.5,
+        avg_latency=0.5,  # estimate - not measured, account had no credits at baseline time
         quality_tier="medium",
     ),
     ModelConfig(
@@ -45,7 +50,7 @@ MODEL_REGISTRY = [
         model_id="claude-sonnet-5",
         cost_per_input_token=2.00 / _PER_MILLION,
         cost_per_output_token=10.00 / _PER_MILLION,
-        avg_latency=1.2,
+        avg_latency=2.71,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="high",
     ),
     ModelConfig(
@@ -53,7 +58,7 @@ MODEL_REGISTRY = [
         model_id="claude-haiku-4-5",
         cost_per_input_token=1.00 / _PER_MILLION,
         cost_per_output_token=5.00 / _PER_MILLION,
-        avg_latency=0.6,
+        avg_latency=1.72,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="medium",
     ),
     ModelConfig(
@@ -61,7 +66,7 @@ MODEL_REGISTRY = [
         model_id="llama3",
         cost_per_input_token=0.0,
         cost_per_output_token=0.0,
-        avg_latency=0.8,
+        avg_latency=13.68,  # measured, baseline 2026-09-10 (n=10); local CPU inference, high variance
         quality_tier="low",
     ),
 ]
