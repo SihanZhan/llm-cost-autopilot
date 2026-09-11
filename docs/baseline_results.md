@@ -1,36 +1,34 @@
 # Phase 1 baseline results
 
-Run: 2026-09-10, `python baseline.py` (10 prompts x registry). Full per-row
-data (prompt id, tier, tokens, latency, cost, output preview) is in
-`baseline_results.csv`, generated locally and gitignored — regenerate with
+Run: 2026-09-10, `python baseline.py` (10 prompts x all 5 registry models).
+Full per-row data (prompt id, tier, tokens, latency, cost, output preview) is
+in `baseline_results.csv`, generated locally and gitignored — regenerate with
 the command above.
-
-## Coverage
-
-3 of 5 registry models ran live. `gpt-4o` and `gpt-4o-mini` were skipped —
-the OpenAI account had no API credits at run time (`429 insufficient_quota`).
-Ollama (`llama3`) and both Anthropic models ran cleanly.
 
 ## Summary
 
 | model | calls | avg latency | total cost |
 |---|---:|---:|---:|
-| claude-sonnet-5 | 10 | 2.71s | $0.01537 |
-| claude-haiku-4-5 | 10 | 1.72s | $0.00592 |
-| llama3 (local) | 10 | 13.68s | $0.00000 |
-| gpt-4o | — | not measured | — |
-| gpt-4o-mini | — | not measured | — |
-| **total** | **30** | | **$0.02129** |
+| gpt-4o | 10 | 16.19s | $0.01197 |
+| gpt-4o-mini | 10 | 1.60s | $0.00077 |
+| claude-sonnet-5 | 10 | 2.67s | $0.01601 |
+| claude-haiku-4-5 | 10 | 1.72s | $0.00580 |
+| llama3 (local) | 10 | 15.84s | $0.00000 |
+| **total** | **50** | | **$0.03456** |
 
 ## Notes
 
-- Haiku is ~2.6x cheaper than Sonnet on this set and noticeably faster — the
-  gap should widen further once GPT-4o-mini is in the mix as a Tier 2 option.
+- **Cost:** the "mini" tier is dramatically cheaper than its frontier
+  sibling — `gpt-4o-mini` is ~15x cheaper than `gpt-4o` on this set, and
+  `claude-haiku-4-5` ~2.8x cheaper than `claude-sonnet-5`. `gpt-4o-mini` is
+  the single cheapest paid model measured.
+- **Latency:** `gpt-4o` was surprisingly slow this run (16.19s avg, several
+  calls 20-25s) — well above `claude-sonnet-5` (2.67s) despite similar
+  pricing. Worth re-checking on a future run before leaning on it for
+  latency-sensitive routing; could be transient API load rather than
+  representative.
 - `llama3` latency is highly variable: sub-4s on short Tier 1 prompts, up to
-  60s on the Tier 3 planning/justification prompt (first call also pays a
-  one-time model-load cost). Fine as a free Tier 1 option; too slow as-is for
-  anything latency-sensitive at Tier 2+.
-- `models.py` `avg_latency` values for the three measured models now reflect
-  these numbers. `gpt-4o` / `gpt-4o-mini` still carry the original estimates
-  pending a funded OpenAI account — re-run the baseline and update those two
-  once credits are added.
+  ~60s on the hardest Tier 3 prompt. Free, but too slow as-is for anything
+  beyond Tier 1 given the alternatives above.
+- `models.py` `avg_latency` for all five models now reflects these measured
+  numbers.
