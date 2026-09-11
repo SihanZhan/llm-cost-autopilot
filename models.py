@@ -6,7 +6,8 @@ first-party pricing, September 2026. `avg_latency` is a rough seconds-per-call
 hint used only for routing.
 
 Phase 1 baseline (2026-09-10, 10 prompts, see baseline_results.csv): every
-`avg_latency` below is a measured average across all five registry models.
+`avg_latency` below is a measured average across all five registry models,
+re-run after the prompt set was rewritten for realism.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ MODEL_REGISTRY = [
         model_id="gpt-4o",
         cost_per_input_token=2.50 / _PER_MILLION,
         cost_per_output_token=10.00 / _PER_MILLION,
-        avg_latency=16.19,  # measured, baseline 2026-09-10 (n=10)
+        avg_latency=1.87,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="high",
     ),
     ModelConfig(
@@ -39,7 +40,7 @@ MODEL_REGISTRY = [
         model_id="gpt-4o-mini",
         cost_per_input_token=0.15 / _PER_MILLION,
         cost_per_output_token=0.60 / _PER_MILLION,
-        avg_latency=1.60,  # measured, baseline 2026-09-10 (n=10)
+        avg_latency=1.64,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="medium",
     ),
     ModelConfig(
@@ -47,7 +48,7 @@ MODEL_REGISTRY = [
         model_id="claude-sonnet-5",
         cost_per_input_token=2.00 / _PER_MILLION,
         cost_per_output_token=10.00 / _PER_MILLION,
-        avg_latency=2.67,  # measured, baseline 2026-09-10 (n=10)
+        avg_latency=2.96,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="high",
     ),
     ModelConfig(
@@ -55,7 +56,7 @@ MODEL_REGISTRY = [
         model_id="claude-haiku-4-5",
         cost_per_input_token=1.00 / _PER_MILLION,
         cost_per_output_token=5.00 / _PER_MILLION,
-        avg_latency=1.72,  # measured, baseline 2026-09-10 (n=10)
+        avg_latency=1.87,  # measured, baseline 2026-09-10 (n=10)
         quality_tier="medium",
     ),
     ModelConfig(
@@ -63,7 +64,7 @@ MODEL_REGISTRY = [
         model_id="llama3",
         cost_per_input_token=0.0,
         cost_per_output_token=0.0,
-        avg_latency=15.84,  # measured, baseline 2026-09-10 (n=10); local CPU inference, high variance
+        avg_latency=16.08,  # measured, baseline 2026-09-10 (n=10); local CPU inference, high variance
         quality_tier="low",
     ),
 ]
