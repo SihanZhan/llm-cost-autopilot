@@ -15,11 +15,11 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 ## Phase 2 — Complexity classifier
 
-- [ ] Define tiers: T1 simple (reformat, extract, basic Q&A) / T2 moderate (summarize, classify, structured analysis) / T3 complex (multi-step reasoning, creative, judgment)
-- [ ] Hand-label 200+ example prompts across tiers
-- [ ] Feature extraction: token count, instruction verbs, constraint count, context present, output-format complexity
-- [ ] Train scikit-learn model (logistic regression / random forest); track accuracy + confusion matrix; target >80% held-out
-- [ ] `routing.yaml`: tier → model mapping, swappable without code changes
+- [x] Define tiers: T1 simple (reformat, extract, basic Q&A) / T2 moderate (summarize, classify, structured analysis) / T3 complex (multi-step reasoning, creative, judgment) — [classifier/tiers.py](classifier/tiers.py)
+- [x] Hand-label 200+ example prompts across tiers — 224 prompts, [classifier/data/build_dataset.py](classifier/data/build_dataset.py) → `labeled_prompts.jsonl`
+- [x] Feature extraction: token count, instruction verbs, constraint count, context present, output-format complexity — [classifier/features.py](classifier/features.py)
+- [x] Train scikit-learn model (logistic regression / random forest); track accuracy + confusion matrix; target >80% held-out — [classifier/train.py](classifier/train.py), **97.8% held-out accuracy** (logistic regression beat random forest on a tie-break)
+- [x] `routing.yaml`: tier → model mapping, swappable without code changes — [routing.yaml](routing.yaml) + [classifier/routing.py](classifier/routing.py) loader
 
 ## Phase 3 — Async quality verification loop
 

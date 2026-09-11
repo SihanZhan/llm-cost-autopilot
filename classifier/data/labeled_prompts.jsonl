@@ -1,0 +1,224 @@
+{"id": "t1-001", "tier": 1, "prompt": "Extract the phone number from this text and return only the number: \"Call the front desk anytime at 555-201-4488 for parking passes.\""}
+{"id": "t1-002", "tier": 1, "prompt": "Convert this list into a JSON array of strings, nothing else: cereal, milk, bananas, honey"}
+{"id": "t1-003", "tier": 1, "prompt": "What is the capital of France? Answer with just the city name."}
+{"id": "t1-004", "tier": 1, "prompt": "Reformat this date as YYYY-MM-DD and output only the result: July 4, 2025"}
+{"id": "t1-005", "tier": 1, "prompt": "Convert 5 miles to kilometers. Output only the number, rounded to one decimal."}
+{"id": "t1-006", "tier": 1, "prompt": "Translate the word \"hello\" into Spanish. Output only the translated word."}
+{"id": "t1-007", "tier": 1, "prompt": "Capitalize the first letter of each word in this title and return only the result: \"the great gatsby\""}
+{"id": "t1-008", "tier": 1, "prompt": "Sort these numbers in ascending order and return them as a comma-separated list: 42, 7, 19, 3, 88"}
+{"id": "t1-009", "tier": 1, "prompt": "Rename the variable \"usr\" to \"user\" in this line and return only the new line: `usr = get_profile(id)`"}
+{"id": "t1-010", "tier": 1, "prompt": "How many items are in this list? Answer with just the number: pen, notebook, eraser, ruler, stapler"}
+{"id": "t1-011", "tier": 1, "prompt": "Extract the order number from this text and return only the number: \"Your package (Order #A29184) has shipped.\""}
+{"id": "t1-012", "tier": 1, "prompt": "Lowercase this string and return only the result: \"PLEASE RESPOND ASAP\""}
+{"id": "t1-013", "tier": 1, "prompt": "Uppercase this string and return only the result: \"quarterly report draft\""}
+{"id": "t1-014", "tier": 1, "prompt": "Replace every instance of \"cat\" with \"dog\" in this sentence and return only the result: \"The cat sat by the cat door.\""}
+{"id": "t1-015", "tier": 1, "prompt": "Count the number of vowels in this word and return only the number: \"encyclopedia\""}
+{"id": "t1-016", "tier": 1, "prompt": "Copy this sentence exactly as written, with no changes: \"Meet me at the corner at noon.\""}
+{"id": "t1-017", "tier": 1, "prompt": "Repeat the word \"echo\" three times, separated by spaces, and return only that."}
+{"id": "t1-018", "tier": 1, "prompt": "Parse the username from this email address and return only the username: \"j.rivera88@mailbox.example\""}
+{"id": "t1-019", "tier": 1, "prompt": "Strip the leading and trailing whitespace from this string and return only the result: \"   hello world   \""}
+{"id": "t1-020", "tier": 1, "prompt": "Join these words into a single sentence separated by spaces, nothing else: \"The\", \"sun\", \"set\", \"early\""}
+{"id": "t1-021", "tier": 1, "prompt": "Split this sentence into individual words as a JSON array: \"Turn left at the second light\""}
+{"id": "t1-022", "tier": 1, "prompt": "Round 17.386 to two decimal places and output only the number."}
+{"id": "t1-023", "tier": 1, "prompt": "What is the boiling point of water in Celsius at sea level? Answer with just the number."}
+{"id": "t1-024", "tier": 1, "prompt": "Extract the zip code from this address and return only the zip code: \"412 Birch Ave, Denver, CO 80203\""}
+{"id": "t1-025", "tier": 1, "prompt": "Reformat this phone number as (XXX) XXX-XXXX and output only the result: 3035557821"}
+{"id": "t1-026", "tier": 1, "prompt": "Convert 2 cups to tablespoons. Output only the number."}
+{"id": "t1-027", "tier": 1, "prompt": "What's the chemical symbol for gold? Answer with just the symbol."}
+{"id": "t1-028", "tier": 1, "prompt": "Extract the hashtags from this caption and return them as a JSON array: \"Beach day! #sunset #ocean #vacation\""}
+{"id": "t1-029", "tier": 1, "prompt": "Reformat this name as \"Last, First\" and output only the result: \"Priya Natarajan\""}
+{"id": "t1-030", "tier": 1, "prompt": "Convert this temperature from Fahrenheit to Celsius: 98.6. Output only the number, rounded to one decimal."}
+{"id": "t1-031", "tier": 1, "prompt": "What year did the first iPhone release? Answer with just the year."}
+{"id": "t1-032", "tier": 1, "prompt": "Extract the URL from this text and return only the URL: \"You can register at https://example.com/signup before Friday.\""}
+{"id": "t1-033", "tier": 1, "prompt": "Reformat this list of names into \"Last, First\" format, one per line, nothing else: John Smith, Maria Garcia, Tom Lee"}
+{"id": "t1-034", "tier": 1, "prompt": "Convert this binary number to decimal and output only the result: 101101"}
+{"id": "t1-035", "tier": 1, "prompt": "What is the plural of \"cactus\"? Answer with just the word."}
+{"id": "t1-036", "tier": 1, "prompt": "Extract the invoice total from this text and return only the amount: \"Total due: $482.19, payable within 30 days.\""}
+{"id": "t1-037", "tier": 1, "prompt": "Reformat this list as a numbered list, nothing else: milk, eggs, bread"}
+{"id": "t1-038", "tier": 1, "prompt": "Convert 3 kilograms to pounds. Output only the number, rounded to one decimal."}
+{"id": "t1-039", "tier": 1, "prompt": "What is the freezing point of water in Fahrenheit? Answer with just the number."}
+{"id": "t1-040", "tier": 1, "prompt": "Extract the flight number from this text and return only the flight number: \"Your flight, DL 2049, departs at 6:15 AM from gate B12.\""}
+{"id": "t1-041", "tier": 1, "prompt": "Translate \"good morning\" into French. Output only the translated phrase."}
+{"id": "t1-042", "tier": 1, "prompt": "Reformat this time as 24-hour format and output only the result: 9:45 PM"}
+{"id": "t1-043", "tier": 1, "prompt": "Extract the discount code from this email and return only the code: \"Use code SAVE20 at checkout for 20% off your order.\""}
+{"id": "t1-044", "tier": 1, "prompt": "Convert this hex color code to its RGB values, output only the three numbers separated by commas: #FF5733"}
+{"id": "t1-045", "tier": 1, "prompt": "What is the square root of 144? Answer with just the number."}
+{"id": "t1-046", "tier": 1, "prompt": "Reformat this address into a single line and return only the result: \"123 Maple St, Apt 4B, Boston, MA 02118\""}
+{"id": "t1-047", "tier": 1, "prompt": "Extract the tracking number from this text and return only the number: \"Tracking: 1Z999AA10123456784, expected Thursday.\""}
+{"id": "t1-048", "tier": 1, "prompt": "Convert 12 tablespoons to cups. Output only the number."}
+{"id": "t1-049", "tier": 1, "prompt": "What is the abbreviation for \"Doctor\"? Answer with just the abbreviation."}
+{"id": "t1-050", "tier": 1, "prompt": "Reformat these initials with periods and return only the result: \"jrr\""}
+{"id": "t1-051", "tier": 1, "prompt": "Extract the meeting time from this message and return only the time: \"Quick sync tomorrow at 2:30pm, keep it short.\""}
+{"id": "t1-052", "tier": 1, "prompt": "Convert 100 USD to a rough estimate in EUR at a 0.92 rate. Output only the number."}
+{"id": "t1-053", "tier": 1, "prompt": "What is 15% of 200? Answer with just the number."}
+{"id": "t1-054", "tier": 1, "prompt": "Reformat this username by removing all numbers and return only the result: \"skywalker42_luke07\""}
+{"id": "t1-055", "tier": 1, "prompt": "Extract the room number from this text and return only the number: \"Conference is in Room 314B this year.\""}
+{"id": "t1-056", "tier": 1, "prompt": "Convert this Roman numeral to a regular number and output only the result: XLII"}
+{"id": "t1-057", "tier": 1, "prompt": "What is the past tense of \"run\"? Answer with just the word."}
+{"id": "t1-058", "tier": 1, "prompt": "Reformat this list alphabetically and return it as a comma-separated list: banana, apple, cherry, date"}
+{"id": "t1-059", "tier": 1, "prompt": "Extract the coupon expiration date from this text and return only the date: \"Offer valid through 12/31/2026, no exceptions.\""}
+{"id": "t1-060", "tier": 1, "prompt": "Convert 250 grams to ounces. Output only the number, rounded to one decimal."}
+{"id": "t1-061", "tier": 1, "prompt": "What is the currency used in Japan? Answer with just the name."}
+{"id": "t1-062", "tier": 1, "prompt": "Reformat this social handle to remove the \"@\" symbol and return only the result: \"@traveldiaries\""}
+{"id": "t1-063", "tier": 1, "prompt": "Extract the confirmation number from this booking text and return only the number: \"Your reservation is confirmed under number RES-88213.\""}
+{"id": "t1-064", "tier": 1, "prompt": "Convert 7 feet to meters. Output only the number, rounded to two decimals."}
+{"id": "t1-065", "tier": 1, "prompt": "What is the opposite of \"ascend\"? Answer with just the word."}
+{"id": "t1-066", "tier": 1, "prompt": "Reformat this list into title case and return only the result, one per line: \"the hobbit\", \"1984\", \"dune\""}
+{"id": "t1-067", "tier": 1, "prompt": "Extract the promo percentage from this text and return only the number: \"Members get an extra 15% off this weekend only.\""}
+{"id": "t1-068", "tier": 1, "prompt": "Convert 30 minutes to seconds. Output only the number."}
+{"id": "t1-069", "tier": 1, "prompt": "What is the SI unit for force? Answer with just the unit name."}
+{"id": "t1-070", "tier": 1, "prompt": "Reformat this string by removing all punctuation and return only the result: \"Wait... what?! Really?\""}
+{"id": "t1-071", "tier": 1, "prompt": "Extract the appointment date from this text and return only the date: \"See you at the dentist on September 22nd at 10am.\""}
+{"id": "t1-072", "tier": 1, "prompt": "Convert this fraction to a decimal and output only the number: 3/8"}
+{"id": "t1-073", "tier": 1, "prompt": "What is the plural of \"child\"? Answer with just the word."}
+{"id": "t1-074", "tier": 1, "prompt": "Reformat this list of tags by removing duplicates and return as a comma-separated list: red, blue, red, green, blue"}
+{"id": "t2-001", "tier": 2, "prompt": "Summarize this paragraph in one sentence: \"The city council approved a new bike lane network last week. Supporters say it will cut commute times and improve safety, while some business owners worry about lost parking. Construction is expected to begin in the spring.\""}
+{"id": "t2-002", "tier": 2, "prompt": "Classify the sentiment of this review as positive, negative, or neutral, and reply with only that word: \"The soup was lukewarm but the service made up for it.\""}
+{"id": "t2-003", "tier": 2, "prompt": "List three advantages and three disadvantages of switching my blog from WordPress to a static site generator. Use two short bulleted lists."}
+{"id": "t2-004", "tier": 2, "prompt": "Summarize this email thread in two sentences: \"Subject: Budget review. Hi team, quick note that Q3 numbers came in under target, mostly due to the delayed product launch. Let's regroup Monday to discuss reallocation. \u2014 Dana\""}
+{"id": "t2-005", "tier": 2, "prompt": "Classify this support ticket as \"billing\", \"technical\", or \"account access\", and reply with only that label: \"I can't log in even after resetting my password twice.\""}
+{"id": "t2-006", "tier": 2, "prompt": "Compare renting versus buying a car for someone who drives about 8,000 miles a year. Give two points for each side."}
+{"id": "t2-007", "tier": 2, "prompt": "Summarize the plot of this short synopsis in one sentence: \"A retired detective is pulled back into one last case when a cold file resurfaces, forcing her to confront the partner she blamed for it going unsolved.\""}
+{"id": "t2-008", "tier": 2, "prompt": "Classify this news headline by topic \u2014 \"sports\", \"politics\", \"technology\", or \"health\" \u2014 and reply with only that word: \"City Hospital Opens New Pediatric Wing\""}
+{"id": "t2-009", "tier": 2, "prompt": "Describe the main differences between a checking account and a savings account in three bullet points."}
+{"id": "t2-010", "tier": 2, "prompt": "Summarize this meeting transcript excerpt in one sentence: \"So the main blocker is still the vendor contract \u2014 legal flagged two clauses on data retention. Marketing's ready to launch as soon as that's resolved.\""}
+{"id": "t2-011", "tier": 2, "prompt": "Classify this product review as positive, negative, or neutral, and reply with only that word: \"It works fine, does what it says, nothing special.\""}
+{"id": "t2-012", "tier": 2, "prompt": "Outline the steps to set up a home Wi-Fi network for a first-time user, in four bullet points."}
+{"id": "t2-013", "tier": 2, "prompt": "Summarize this recipe's key steps in two sentences: \"Preheat the oven to 375\u00b0F. Season the chicken thighs and sear them skin-side down for 5 minutes. Transfer to the oven and roast for 25 minutes until the skin is crisp and the juices run clear.\""}
+{"id": "t2-014", "tier": 2, "prompt": "Classify this email as \"urgent\" or \"not urgent\", and reply with only that word: \"No rush at all, just checking in whenever you get a chance.\""}
+{"id": "t2-015", "tier": 2, "prompt": "Compare a 15-year mortgage and a 30-year mortgage for someone prioritizing lower monthly payments. Two points each."}
+{"id": "t2-016", "tier": 2, "prompt": "Summarize this customer complaint in one sentence: \"I ordered the blue one but received red, and when I called support they said I'd have to pay for return shipping myself, which doesn't seem right given it was their mistake.\""}
+{"id": "t2-017", "tier": 2, "prompt": "Group these words into two categories, \"fruit\" and \"vegetable\", and list each group: carrot, apple, spinach, banana, broccoli, mango"}
+{"id": "t2-018", "tier": 2, "prompt": "Explain the difference between a gross salary and a net salary in two sentences."}
+{"id": "t2-019", "tier": 2, "prompt": "Rank these three laptops by battery life based on this description, best to worst, and just list the order: \"Laptop A: 10 hours. Laptop B: 14 hours. Laptop C: 8 hours.\""}
+{"id": "t2-020", "tier": 2, "prompt": "Summarize this project status update in one sentence: \"Backend is done and tested, frontend is about 70% complete, and we're still waiting on the design team for the final icon set before we can ship.\""}
+{"id": "t2-021", "tier": 2, "prompt": "Classify this workplace message as \"positive feedback\", \"negative feedback\", or \"neutral\", and reply with only that phrase: \"Good catch on the bug, that would've been a mess in production.\""}
+{"id": "t2-022", "tier": 2, "prompt": "Identify the main cause described in this passage in one sentence: \"Traffic on Route 9 has worsened significantly since the new outlet mall opened, adding an estimated 15 minutes to the average commute.\""}
+{"id": "t2-023", "tier": 2, "prompt": "Describe three pros and three cons of adopting a puppy versus an adult dog."}
+{"id": "t2-024", "tier": 2, "prompt": "Summarize this doctor's note in one sentence: \"Patient presents with mild seasonal allergy symptoms, advised to continue over-the-counter antihistamines and follow up if symptoms worsen or persist beyond two weeks.\""}
+{"id": "t2-025", "tier": 2, "prompt": "Classify this tweet's tone as \"sarcastic\", \"sincere\", or \"neutral\", and reply with only that word: \"Oh great, another Monday meeting that could've been an email.\""}
+{"id": "t2-026", "tier": 2, "prompt": "Compare working from home versus working from an office for someone with young kids. Give two points for each."}
+{"id": "t2-027", "tier": 2, "prompt": "Summarize the key takeaway from this study abstract in one sentence: \"Participants who took short walking breaks every hour reported significantly less afternoon fatigue than those who remained seated, though the effect on overall productivity was inconclusive.\""}
+{"id": "t2-028", "tier": 2, "prompt": "Explain why a credit score might drop after paying off a loan, in two sentences."}
+{"id": "t2-029", "tier": 2, "prompt": "Outline three steps for onboarding a new hire on their first day."}
+{"id": "t2-030", "tier": 2, "prompt": "Classify this restaurant review as positive, negative, or neutral, and reply with only that word: \"Great food, but we waited 45 minutes for a table despite having a reservation.\""}
+{"id": "t2-031", "tier": 2, "prompt": "Summarize this incident report in one sentence: \"At approximately 2:15pm, a minor water leak was reported near the second-floor break room; maintenance was dispatched and resolved the issue within the hour with no equipment damage.\""}
+{"id": "t2-032", "tier": 2, "prompt": "Describe the difference between a personal loan and a home equity line of credit in two to three sentences."}
+{"id": "t2-033", "tier": 2, "prompt": "Group these expenses into \"essential\" and \"discretionary\": rent, streaming subscriptions, groceries, dining out, electricity, concert tickets"}
+{"id": "t2-034", "tier": 2, "prompt": "Summarize this teacher's feedback in one sentence: \"Your essay has a strong thesis, but the second paragraph strays from the main argument \u2014 tightening that section would make the whole piece more persuasive.\""}
+{"id": "t2-035", "tier": 2, "prompt": "Classify this job listing's seniority level as \"entry\", \"mid\", or \"senior\", and reply with only that word: \"3+ years of experience required, some mentorship of junior team members expected.\""}
+{"id": "t2-036", "tier": 2, "prompt": "Compare paper books and e-readers for someone who travels frequently. Two points each."}
+{"id": "t2-037", "tier": 2, "prompt": "Explain in two sentences why a website might load slowly on mobile but fine on desktop."}
+{"id": "t2-038", "tier": 2, "prompt": "Summarize this travel itinerary note in one sentence: \"Day one is arrival and rest, day two is the museum district and a walking food tour, and day three is a half-day trip to the coast before the evening flight home.\""}
+{"id": "t2-039", "tier": 2, "prompt": "Identify the tone of this cover letter opening as \"confident\", \"hesitant\", or \"neutral\", and reply with only that word: \"I believe my five years leading cross-functional teams make me well-suited for this role.\""}
+{"id": "t2-040", "tier": 2, "prompt": "Describe two advantages and two disadvantages of a four-day work week."}
+{"id": "t2-041", "tier": 2, "prompt": "Summarize this warranty clause in one sentence: \"Coverage applies only to manufacturing defects reported within 12 months of purchase and does not extend to accidental damage or normal wear and tear.\""}
+{"id": "t2-042", "tier": 2, "prompt": "Classify this social media comment as \"spam\", \"genuine feedback\", or \"complaint\", and reply with only that phrase: \"This is exactly the update I've been waiting for, thank you!\""}
+{"id": "t2-043", "tier": 2, "prompt": "Compare index funds and individual stock picking for a beginner investor. Two points each."}
+{"id": "t2-044", "tier": 2, "prompt": "Summarize this recipe review in one sentence: \"Followed it exactly and the cake came out a little dry, though the frosting recipe was excellent and I'll definitely reuse that part.\""}
+{"id": "t2-045", "tier": 2, "prompt": "Outline three considerations when choosing a college major."}
+{"id": "t2-046", "tier": 2, "prompt": "Explain the difference between \"affect\" and \"effect\" in one or two sentences with an example of each."}
+{"id": "t2-047", "tier": 2, "prompt": "Classify this weather alert's severity as \"low\", \"moderate\", or \"severe\", and reply with only that word: \"Expect scattered light showers through the afternoon with no significant wind.\""}
+{"id": "t2-048", "tier": 2, "prompt": "Summarize this landlord notice in one sentence: \"Water will be shut off building-wide from 9am to 1pm on Thursday for scheduled pipe maintenance; no action needed from tenants.\""}
+{"id": "t2-049", "tier": 2, "prompt": "Compare a standing desk and a traditional desk for someone with lower back pain. Two points each."}
+{"id": "t2-050", "tier": 2, "prompt": "Describe two reasons a startup might choose to bootstrap instead of raising venture capital."}
+{"id": "t2-051", "tier": 2, "prompt": "Summarize this app update changelog in one sentence: \"This release fixes the crash on login, improves photo upload speed, and adds dark mode support for all screens.\""}
+{"id": "t2-052", "tier": 2, "prompt": "Classify this customer email's urgency as \"high\", \"medium\", or \"low\", and reply with only that word: \"My card was charged twice for the same order and I need this resolved before it affects my account balance.\""}
+{"id": "t2-053", "tier": 2, "prompt": "Explain in two sentences the difference between a resume and a CV."}
+{"id": "t2-054", "tier": 2, "prompt": "Outline the main steps to file a warranty claim based on this policy summary: \"Claims must include proof of purchase and photos of the defect, submitted through the online portal within 30 days.\""}
+{"id": "t2-055", "tier": 2, "prompt": "Compare a gas stove and an induction stove for someone who cooks daily. Two points each."}
+{"id": "t2-056", "tier": 2, "prompt": "Summarize this HR policy update in one sentence: \"Starting next quarter, employees may carry over up to five unused vacation days into the following year, up from zero previously.\""}
+{"id": "t2-057", "tier": 2, "prompt": "Classify this online comment as \"constructive criticism\" or \"just complaining\", and reply with only that phrase: \"The checkout flow is confusing \u2014 maybe combine steps 2 and 3?\""}
+{"id": "t2-058", "tier": 2, "prompt": "Describe two pros and two cons of meal prepping for the week versus cooking daily."}
+{"id": "t2-059", "tier": 2, "prompt": "Summarize this insurance claim update in one sentence: \"Your claim has been approved for partial coverage; the adjuster's report cited pre-existing wear on the affected part, which reduced the payout by 20%.\""}
+{"id": "t2-060", "tier": 2, "prompt": "Explain why two students might get different grades on similar essays, in two to three sentences."}
+{"id": "t2-061", "tier": 2, "prompt": "Compare a fixed-rate and an adjustable-rate mortgage for someone planning to move in three years. Two points each."}
+{"id": "t2-062", "tier": 2, "prompt": "Outline three factors to weigh when picking a moving company."}
+{"id": "t2-063", "tier": 2, "prompt": "Summarize this software release note in one sentence: \"Version 4.2 addresses the memory leak reported by several users on the forums and adds an optional auto-save feature, though initial testing shows a small increase in startup time.\""}
+{"id": "t2-064", "tier": 2, "prompt": "Classify this voicemail transcript's purpose as \"sales\", \"support\", or \"personal\", and reply with only that word: \"Hey, it's your cousin, just calling to see if you're free for dinner Sunday.\""}
+{"id": "t2-065", "tier": 2, "prompt": "Describe two differences between a manager and a mentor."}
+{"id": "t2-066", "tier": 2, "prompt": "Summarize this product recall notice in one sentence: \"The manufacturer has issued a voluntary recall on units produced between March and June due to a battery overheating risk, and is offering free replacements.\""}
+{"id": "t2-067", "tier": 2, "prompt": "Compare studying with flashcards versus studying by writing summaries for retaining new vocabulary. Two points each."}
+{"id": "t2-068", "tier": 2, "prompt": "Explain in two sentences why a router might need to be restarted periodically."}
+{"id": "t2-069", "tier": 2, "prompt": "Outline three things to check before signing an apartment lease."}
+{"id": "t2-070", "tier": 2, "prompt": "Summarize this performance review excerpt in one sentence: \"Strong technical output this quarter, but communication with stakeholders during the outage could have been faster and more proactive.\""}
+{"id": "t2-071", "tier": 2, "prompt": "Classify this text message as \"needs a reply\" or \"no reply needed\", and reply with only that phrase: \"Running 10 min late, see you soon!\""}
+{"id": "t2-072", "tier": 2, "prompt": "Compare a hybrid car and a fully electric car for someone with a long daily commute and no home charger. Two points each."}
+{"id": "t2-073", "tier": 2, "prompt": "Describe two reasons remote teams might rely more heavily on written documentation than in-office teams."}
+{"id": "t2-074", "tier": 2, "prompt": "Summarize this contractor's estimate note in one sentence: \"The quote covers materials and labor for the bathroom remodel but excludes any plumbing rerouting, which would be billed separately if needed.\""}
+{"id": "t2-075", "tier": 2, "prompt": "Explain the difference between a warranty and an insurance policy in two sentences."}
+{"id": "t3-001", "tier": 3, "prompt": "Two trains start 180 miles apart heading toward each other, one at 60 mph and the other at 40 mph. How long until they meet? Show your reasoning step by step."}
+{"id": "t3-002", "tier": 3, "prompt": "Write a four-line poem about a lighthouse. The poem must never mention the sea, water, waves, or the ocean."}
+{"id": "t3-003", "tier": 3, "prompt": "I have a $10,000 budget to reduce my monthly cloud hosting bill. Propose a prioritized three-step plan and justify why each step is ordered where it is."}
+{"id": "t3-004", "tier": 3, "prompt": "A tank is filled by pipe A in 6 hours and by pipe B in 4 hours. If both pipes are open together, how long will it take to fill the tank? Walk through your reasoning."}
+{"id": "t3-005", "tier": 3, "prompt": "Write a six-line poem about starting a new job, without using the words \"nervous\", \"excited\", or \"first\"."}
+{"id": "t3-006", "tier": 3, "prompt": "My team of five has three months to migrate a legacy database with zero downtime allowed. Propose a step-by-step plan and explain the risks at each stage."}
+{"id": "t3-007", "tier": 3, "prompt": "If a recipe serves 4 and calls for 2.5 cups of flour, how much flour is needed for 10 people, and why might you round the final amount up rather than down? Explain your reasoning."}
+{"id": "t3-008", "tier": 3, "prompt": "Write a short story opening, no more than five sentences, about a locksmith who's afraid of locked doors, without directly stating the irony."}
+{"id": "t3-009", "tier": 3, "prompt": "Evaluate whether a small bakery should open a second location this year given rising rent costs but strong recent sales growth, and justify your recommendation."}
+{"id": "t3-010", "tier": 3, "prompt": "A car travels the first half of a trip at 50 mph and the second half at 70 mph. What is its average speed for the entire trip? Show each step."}
+{"id": "t3-011", "tier": 3, "prompt": "Write a four-line poem about autumn without using the words \"leaves\", \"orange\", \"fall\", or \"cold\"."}
+{"id": "t3-012", "tier": 3, "prompt": "Design a three-phase rollout plan for a company switching all employees from a 5-day to a 4-day work week, and justify the order of the phases."}
+{"id": "t3-013", "tier": 3, "prompt": "I'm choosing between two job offers: one with higher pay but longer hours, and one with lower pay but full remote flexibility. Walk through the tradeoffs and recommend one, explaining your reasoning."}
+{"id": "t3-014", "tier": 3, "prompt": "A ladder 10 feet long leans against a wall with its base 6 feet from the wall. How high up the wall does the ladder reach? Show your work."}
+{"id": "t3-015", "tier": 3, "prompt": "Write a limerick about a chef who burns everything, without using the word \"burn\" or any of its forms."}
+{"id": "t3-016", "tier": 3, "prompt": "Propose a step-by-step plan for a first-time marathon runner training over 16 weeks, and explain why the phases are ordered the way they are."}
+{"id": "t3-017", "tier": 3, "prompt": "If I invest $5,000 at 6% annual interest compounded yearly, how much will I have after 8 years, and how does that compare to simple interest over the same period? Show your reasoning."}
+{"id": "t3-018", "tier": 3, "prompt": "Critique this argument and identify its main weakness: \"Since every successful startup founder I've read about dropped out of college, dropping out must improve your odds of success.\""}
+{"id": "t3-019", "tier": 3, "prompt": "Write a three-stanza poem about learning to ride a bike, without ever using the words \"bike\", \"wheel\", or \"pedal\"."}
+{"id": "t3-020", "tier": 3, "prompt": "A farmer has 60 meters of fencing and wants to enclose the largest possible rectangular area against an existing wall, so only three sides need fencing. What dimensions maximize the area? Explain your reasoning."}
+{"id": "t3-021", "tier": 3, "prompt": "Recommend whether a small nonprofit should switch from paper mailers to an all-digital fundraising campaign, weighing donor demographics and cost, and justify your answer."}
+{"id": "t3-022", "tier": 3, "prompt": "Two runners start at the same point on a circular track 400 meters long, running in opposite directions at 5 m/s and 7 m/s. How long until they meet again? Show the steps."}
+{"id": "t3-023", "tier": 3, "prompt": "Write a haiku sequence, three haiku, about grief, without using the words \"loss\", \"gone\", \"death\", or \"sad\"."}
+{"id": "t3-024", "tier": 3, "prompt": "Design a prioritized plan for a solo developer to add automated testing to a codebase that currently has none, and justify the order of steps given limited time."}
+{"id": "t3-025", "tier": 3, "prompt": "Forecast how a local coffee shop's revenue might change if a large chain opens two blocks away, and explain the factors driving your estimate."}
+{"id": "t3-026", "tier": 3, "prompt": "A pool can be filled by one hose in 5 hours and drained by a leak in 8 hours. If both are open at once, how long to fill the pool? Show your reasoning."}
+{"id": "t3-027", "tier": 3, "prompt": "Write a six-line poem about a chess match, without mentioning any chess piece by name."}
+{"id": "t3-028", "tier": 3, "prompt": "Propose a three-step plan to reduce food waste in a household of four, ordered from easiest to hardest to sustain, and justify the ordering."}
+{"id": "t3-029", "tier": 3, "prompt": "Brainstorm three original names for a mobile app that helps roommates split bills, and explain the reasoning behind each suggestion."}
+{"id": "t3-030", "tier": 3, "prompt": "If a car depreciates 15% in its first year and 10% of its remaining value each year after, what is it worth after 3 years starting from $30,000? Show each step."}
+{"id": "t3-031", "tier": 3, "prompt": "Write a short monologue, four to six sentences, from the perspective of an old bridge watching a city change, without using the word \"bridge\"."}
+{"id": "t3-032", "tier": 3, "prompt": "Evaluate the tradeoffs between hiring a full-time employee versus a freelancer for a six-month project, and recommend one option with justification."}
+{"id": "t3-033", "tier": 3, "prompt": "A store marks up an item by 40% then offers a 20% discount on the marked-up price. Is the final price higher or lower than the original, and by how much? Show your reasoning."}
+{"id": "t3-034", "tier": 3, "prompt": "Design a plan for a first-time homeowner to prioritize repairs on a fixer-upper with a $15,000 budget, and justify what comes first."}
+{"id": "t3-035", "tier": 3, "prompt": "Write a four-line poem about insomnia without using the words \"sleep\", \"night\", \"awake\", or \"tired\"."}
+{"id": "t3-036", "tier": 3, "prompt": "Hypothesize why a popular restaurant's online reviews might have dropped sharply after a change in ownership, and suggest what evidence would confirm or rule out each hypothesis."}
+{"id": "t3-037", "tier": 3, "prompt": "Two friends split a $240 restaurant bill unevenly because one ordered a $60 bottle of wine alone. Propose a fair way to split it and justify your reasoning."}
+{"id": "t3-038", "tier": 3, "prompt": "Write a short fable, five to seven sentences, in which a tortoise and a hare learn a lesson that is not \"slow and steady wins the race\"."}
+{"id": "t3-039", "tier": 3, "prompt": "Recommend a prioritized order for a freelancer to pay down $8,000 across three debts with different interest rates, and justify the ordering."}
+{"id": "t3-040", "tier": 3, "prompt": "A photographer charges $200 for the first hour and $75 for each additional hour. If a client has a $500 budget, what's the maximum number of hours they can book, and what's left over? Show your work."}
+{"id": "t3-041", "tier": 3, "prompt": "Design a three-step plan to improve a small ecommerce store's checkout abandonment rate, and justify why each step comes before the next."}
+{"id": "t3-042", "tier": 3, "prompt": "Write a two-stanza poem about a city at 3am, without using the words \"quiet\", \"silent\", \"empty\", or \"sleep\"."}
+{"id": "t3-043", "tier": 3, "prompt": "Critique this business plan assumption and explain why it's risky: \"We'll capture 10% of the market in year one because our product is better than the competition's.\""}
+{"id": "t3-044", "tier": 3, "prompt": "A cyclist rides uphill at 8 mph and returns the same route downhill at 20 mph. If the total round trip takes 3.5 hours, how long is the route one way? Show your reasoning."}
+{"id": "t3-045", "tier": 3, "prompt": "Propose a step-by-step plan for transitioning a family business from the founding generation to the next, and justify the ordering of the steps."}
+{"id": "t3-046", "tier": 3, "prompt": "Write a short scene, four to six lines of dialogue, between two coworkers disagreeing about a deadline, without either character raising their voice or using an exclamation point."}
+{"id": "t3-047", "tier": 3, "prompt": "Evaluate whether a college student should take an unpaid internship in their field or a paid job outside their field for the summer, and recommend one with reasoning."}
+{"id": "t3-048", "tier": 3, "prompt": "If three workers can build a fence in 4 days, how many days would it take five workers at the same rate, and what assumption does that calculation rely on? Explain."}
+{"id": "t3-049", "tier": 3, "prompt": "Design a prioritized three-step plan for a city considering converting an underused parking lot into a public park, and justify the order."}
+{"id": "t3-050", "tier": 3, "prompt": "Write a four-line poem about jealousy without using the words \"jealous\", \"envy\", \"green\", or \"want\"."}
+{"id": "t3-051", "tier": 3, "prompt": "Brainstorm two unconventional ways a small farm could diversify its income beyond selling produce, and explain the reasoning behind each idea."}
+{"id": "t3-052", "tier": 3, "prompt": "A rectangular garden is twice as long as it is wide, and its perimeter is 60 feet. What are its dimensions, and how did you find them? Show your steps."}
+{"id": "t3-053", "tier": 3, "prompt": "Recommend whether a musician should sign with a label or stay independent given a $50,000 advance offer with reduced royalties versus full royalties alone, and justify the choice."}
+{"id": "t3-054", "tier": 3, "prompt": "Write a short reflective paragraph, four to five sentences, about failing at something, from the perspective of the person who failed, without using the word \"fail\" or \"failure\"."}
+{"id": "t3-055", "tier": 3, "prompt": "Propose a plan for a nonprofit to diversify its funding sources over two years, moving away from reliance on a single major donor, and justify the sequencing."}
+{"id": "t3-056", "tier": 3, "prompt": "If a $1,200 laptop loses 25% of its value each year, in how many years will it be worth less than $300? Show your reasoning and round appropriately."}
+{"id": "t3-057", "tier": 3, "prompt": "Design a three-phase plan for onboarding a new engineering hire at a startup with no formal onboarding process yet, and explain your ordering."}
+{"id": "t3-058", "tier": 3, "prompt": "Write a six-line poem about waiting for test results, without using the words \"worry\", \"anxious\", \"fear\", or \"hope\"."}
+{"id": "t3-059", "tier": 3, "prompt": "Evaluate the risk of a small business taking on a large loan to expand during a period of economic uncertainty, and recommend a course of action with reasoning."}
+{"id": "t3-060", "tier": 3, "prompt": "Two pumps working together fill a reservoir in 3 hours; alone, the faster pump would take 5 hours. How long would the slower pump take alone? Show your work."}
+{"id": "t3-061", "tier": 3, "prompt": "Propose three prioritized steps a remote team could take to rebuild trust after a missed product deadline, and justify the ordering."}
+{"id": "t3-062", "tier": 3, "prompt": "Write a short parable, five to six sentences, about patience, without directly using the word \"patience\" or \"patient\"."}
+{"id": "t3-063", "tier": 3, "prompt": "Critique this decision and explain the flaw in reasoning: \"We should discontinue the product because sales dropped last month, even though it's the first month after a price increase.\""}
+{"id": "t3-064", "tier": 3, "prompt": "If a plane flies 500 miles against a headwind in 2.5 hours and the same 500 miles with a tailwind in 2 hours, what is the wind speed? Show your reasoning."}
+{"id": "t3-065", "tier": 3, "prompt": "Design a plan for a couple to merge finances after getting married, prioritizing the steps that reduce the most friction first, and justify the order."}
+{"id": "t3-066", "tier": 3, "prompt": "Write a four-line poem about a first snowfall without using the words \"snow\", \"white\", \"cold\", or \"winter\"."}
+{"id": "t3-067", "tier": 3, "prompt": "Recommend whether a restaurant should raise menu prices or shrink portion sizes to offset rising ingredient costs, and justify the choice with the tradeoffs involved."}
+{"id": "t3-068", "tier": 3, "prompt": "A worker's hourly wage increases 5% each year. Starting at $20/hour, in what year does their wage first exceed $28/hour? Show the calculation."}
+{"id": "t3-069", "tier": 3, "prompt": "Propose a prioritized three-step plan for a small town to reduce traffic congestion downtown without banning cars outright, and justify the ordering."}
+{"id": "t3-070", "tier": 3, "prompt": "Write a short piece of flash fiction, five to seven sentences, about a character who finds an old key, without revealing what it unlocks."}
+{"id": "t3-071", "tier": 3, "prompt": "Evaluate whether a college should require students to complete an internship to graduate, considering both access and equity concerns, and give a recommendation."}
+{"id": "t3-072", "tier": 3, "prompt": "Two candles of equal length burn at different rates; one takes 4 hours to burn out and the other 6 hours. If both are lit at the same time, after how long will one candle be exactly twice the height of the other? Show your reasoning."}
+{"id": "t3-073", "tier": 3, "prompt": "Design a three-step plan for a musician to grow an audience on a limited budget, ordered by expected impact, and justify the ordering."}
+{"id": "t3-074", "tier": 3, "prompt": "Write a four-line poem about forgiveness without using the words \"forgive\", \"sorry\", \"wrong\", or \"heart\"."}
+{"id": "t3-075", "tier": 3, "prompt": "Recommend how a manager should handle a high performer who consistently misses team meetings, weighing the tradeoffs, and justify the recommendation."}

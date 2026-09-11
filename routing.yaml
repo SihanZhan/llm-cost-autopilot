@@ -1,0 +1,11 @@
+# Tier -> model mapping. Edit this file to change routing without touching code.
+# Tiers come from classifier/tiers.py (1=simple, 2=moderate, 3=complex).
+# Each model_id must exist in models.MODEL_REGISTRY (see models.py).
+#
+# Defaults below follow the project brief: cheapest model for simple tasks,
+# a mid-tier paid model for moderate ones, the frontier model for complex
+# ones. Swap any value to re-route — no code change or redeploy needed.
+routing:
+  1: llama3          # simple - reformat, extract, basic Q&A (free, local)
+  2: gpt-4o-mini      # moderate - summarize, classify, structured analysis
+  3: gpt-4o           # complex - multi-step reasoning, creative, judgment
