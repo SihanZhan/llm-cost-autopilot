@@ -70,10 +70,15 @@ flowchart LR
 | [classifier/train.py](classifier/train.py) | Trains logistic regression + random forest, reports accuracy/confusion matrix, saves the better one to `model.joblib` |
 | [classifier/predict.py](classifier/predict.py) | Loads the trained model and scores a new prompt's tier |
 | [routing.yaml](routing.yaml) + [classifier/routing.py](classifier/routing.py) | Tier → model mapping, editable without touching code |
+| [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction field coverage, classification label match, summarization LLM-as-judge, general token-overlap fallback |
+| [eval/verifier.py](eval/verifier.py) | Re-runs the routed prompt against the top-tier model on a background thread, scores agreement, auto-escalates on failure, logs every outcome |
+| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, kick off async verification; the single entry point later phases call |
+| [eval/demo.py](eval/demo.py) | Runs the pipeline over the 10 baseline prompts and reports pass/fail/escalation per prompt |
+| [classifier/feedback.py](classifier/feedback.py) | Harvests escalations from the verification log into `failure_feedback.jsonl`, which `classifier.train` folds into the next retrain |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
-More modules (`router/`, `eval/`, `api/`, `dashboard/`) land as the roadmap
-phases are built.
+More modules (`router/`, `api/`, `dashboard/`) land as the roadmap phases are
+built.
 
 ## Baseline (Phase 1)
 
@@ -98,6 +103,14 @@ python -m classifier.predict "some prompt"
 python -m classifier.routing              # print the current tier -> model mapping
 ```
 
+## Verification loop (Phase 3)
+
+```bash
+python -m eval.demo          # route + verify the 10 baseline prompts, live
+python -m classifier.feedback   # harvest any escalations into training data
+python -m classifier.train      # retrain, now including that feedback
+```
+
 ## Status
 
 **Phase 1 (unified model interface) — done.** Registry, unified `send_request`,
@@ -106,5 +119,12 @@ baseline harness, and a live baseline run across all 5 models are all in place
 
 **Phase 2 (complexity classifier) — done.** Tiers, feature extraction, a
 224-prompt hand-labeled dataset, a trained classifier (97.8% held-out
-accuracy), and `routing.yaml` are all in place. The verifier, API, and
-dashboard are not built yet. See [ROADMAP.md](ROADMAP.md).
+accuracy), and `routing.yaml` are all in place.
+
+**Phase 3 (async quality verification loop) — done.** Per-use-case quality
+checks, a real background-thread verifier with auto-escalation, and a
+feedback loop back into classifier training are all in place — see
+[docs/phase3_notes.md](docs/phase3_notes.md) for a live demo run (2/10
+escalated) and a real finding: naive feedback from that run measurably hurt
+held-out accuracy (97.8% → 95.7%), which the notes dig into rather than
+paper over. The API and dashboard are not built yet. See [ROADMAP.md](ROADMAP.md).

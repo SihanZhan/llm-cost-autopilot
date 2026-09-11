@@ -1,0 +1,2 @@
+{"id": "failure-0001", "tier": 3, "prompt": "Turn my grocery list into a JSON array of strings, nothing else: eggs, oat milk, spinach, cold brew", "source": "routing_failure", "original_tier": 1, "original_model": "llama3"}
+{"id": "failure-0002", "tier": 3, "prompt": "I'm deciding whether to use SQLite as the database for my side project's internal web app. List three advantages and three disadvantages. Use two short bulleted lists.", "source": "routing_failure", "original_tier": 2, "original_model": "gpt-4o-mini"}

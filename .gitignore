@@ -18,8 +18,10 @@ __pycache__/
 !.env.example
 *.key
 
-# Experiment output (baseline_results.csv is tracked deliberately)
+# Experiment output (baseline_results.csv and classifier/data/failure_feedback.jsonl
+# are tracked deliberately)
 runs/
+eval/logs/
 
 # Editor / OS
 .vscode/

@@ -27,21 +27,27 @@ from classifier.tiers import TIER_NAMES, TIERS
 
 ROOT = Path(__file__).parent
 DATA_FILE = ROOT / "data" / "labeled_prompts.jsonl"
+FEEDBACK_FILE = ROOT / "data" / "failure_feedback.jsonl"
 MODEL_FILE = ROOT / "model.joblib"
 
 TARGET_ACCURACY = 0.80
 
 
 def load_dataset() -> tuple[list[str], list[int]]:
+    """Load the hand-labeled set, plus any accumulated routing-failure
+    feedback (see classifier.feedback) if that file exists yet."""
     prompts, tiers = [], []
-    with DATA_FILE.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            prompts.append(row["prompt"])
-            tiers.append(row["tier"])
+    for path in (DATA_FILE, FEEDBACK_FILE):
+        if not path.exists():
+            continue
+        with path.open(encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                prompts.append(row["prompt"])
+                tiers.append(row["tier"])
     return prompts, tiers
 
 
@@ -68,7 +74,8 @@ def evaluate(name: str, model, X_test: np.ndarray, y_test: np.ndarray) -> float:
 
 def main() -> int:
     prompts, tiers = load_dataset()
-    print(f"{len(prompts)} labeled prompts loaded from {DATA_FILE.name}")
+    feedback_note = f" (incl. {FEEDBACK_FILE.name})" if FEEDBACK_FILE.exists() else ""
+    print(f"{len(prompts)} labeled prompts loaded{feedback_note}")
 
     X = build_matrix(prompts)
     y = np.array(tiers)
