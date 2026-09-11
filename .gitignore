@@ -18,8 +18,7 @@ __pycache__/
 !.env.example
 *.key
 
-# Baseline / experiment output
-baseline_results.csv
+# Experiment output (baseline_results.csv is tracked deliberately)
 runs/
 
 # Editor / OS

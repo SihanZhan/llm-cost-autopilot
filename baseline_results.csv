@@ -1,0 +1,51 @@
+prompt_id,tier,provider,model_id,input_tokens,output_tokens,latency_s,cost_usd,output_preview
+t1-extract-email,1,openai,gpt-4o,48,8,2.948,0.000200,mike.chen.realty@example.com
+t1-list-to-json,1,openai,gpt-4o,30,21,1.374,0.000285,"```json [""eggs"", ""oat milk"", ""spinach"", ""cold brew""] ```"
+t1-capital-qa,1,openai,gpt-4o,28,1,1.810,0.000080,Tokyo
+t1-date-reformat,1,openai,gpt-4o,34,6,0.815,0.000145,2026-03-05
+t2-summarize,2,openai,gpt-4o,72,27,0.984,0.000450,"Remote work has increased significantly since 2020, with many companies adopting"
+t2-sentiment,2,openai,gpt-4o,47,1,0.482,0.000128,Negative
+t2-tradeoffs,2,openai,gpt-4o,38,200,2.334,0.002095,**Advantages of SQLite:**  - **Lightweight and Easy to Use:** SQLite is a self-c
+t3-word-problem,3,openai,gpt-4o,55,213,1.728,0.002268,"To determine how long it will take for you and your friend to meet, you can star"
+t3-constrained-poem,3,openai,gpt-4o,41,44,1.035,0.000543,"In solitude he stood, guiding through the night,   A beacon of hope, cast in ste"
+t3-plan-justify,3,openai,gpt-4o,54,512,5.166,0.005255,Creating an effective plan to reduce your monthly LLM (Large Language Model) API
+t1-extract-email,1,openai,gpt-4o-mini,48,8,1.037,0.000012,mike.chen.realty@example.com
+t1-list-to-json,1,openai,gpt-4o-mini,30,21,0.841,0.000017,"```json [""eggs"", ""oat milk"", ""spinach"", ""cold brew""] ```"
+t1-capital-qa,1,openai,gpt-4o-mini,28,1,1.078,0.000005,Tokyo
+t1-date-reformat,1,openai,gpt-4o-mini,34,6,0.883,0.000009,2026-03-05
+t2-summarize,2,openai,gpt-4o-mini,72,34,0.884,0.000031,"Remote work increased significantly post-2020, leading many companies to adopt h"
+t2-sentiment,2,openai,gpt-4o-mini,47,1,0.487,0.000008,Negative
+t2-tradeoffs,2,openai,gpt-4o-mini,38,172,2.680,0.000109,### Advantages of Using SQLite: - **Lightweight and Easy to Set Up:** SQLite is 
+t3-word-problem,3,openai,gpt-4o-mini,55,300,2.449,0.000188,"To determine how long it will take for you and your friend to meet, we can follo"
+t3-constrained-poem,3,openai,gpt-4o-mini,41,38,2.041,0.000029,"In steadfast silence, your light would shine,   A beacon of warmth through darke"
+t3-plan-justify,3,openai,gpt-4o-mini,54,512,4.005,0.000315,Creating an LLM Cost Autopilot to manage and reduce your monthly LLM API spendin
+t1-extract-email,1,anthropic,claude-sonnet-5,65,14,2.079,0.000270,mike.chen.realty@example.com
+t1-list-to-json,1,anthropic,claude-sonnet-5,46,30,1.087,0.000392,"```json [""eggs"", ""oat milk"", ""spinach"", ""cold brew""] ```"
+t1-capital-qa,1,anthropic,claude-sonnet-5,37,7,1.283,0.000144,Tokyo
+t1-date-reformat,1,anthropic,claude-sonnet-5,46,8,1.247,0.000172,2026-03-05
+t2-summarize,2,anthropic,claude-sonnet-5,112,51,1.750,0.000734,"Since 2020, hybrid work (2-3 office days/week) has become common, showing mixed "
+t2-sentiment,2,anthropic,claude-sonnet-5,63,5,1.291,0.000176,Negative
+t2-tradeoffs,2,anthropic,claude-sonnet-5,57,332,4.377,0.003434,# SQLite for Your Internal Web App  ## Advantages - **Zero configuration** – No 
+t3-word-problem,3,anthropic,claude-sonnet-5,74,492,4.268,0.005068,"# Setting Up the Problem  When two people travel toward each other, their speeds"
+t3-constrained-poem,3,anthropic,claude-sonnet-5,61,67,5.530,0.000792,"Through darkest nights you held your steady flame, A patient watchman guarding t"
+t3-plan-justify,3,anthropic,claude-sonnet-5,79,512,6.724,0.005278,# LLM Cost Autopilot: Prioritized 3-Step Plan  ## Step 1: Observability & Cachin
+t1-extract-email,1,anthropic,claude-haiku-4-5,54,13,0.765,0.000119,mike.chen.realty@example.com
+t1-list-to-json,1,anthropic,claude-haiku-4-5,32,24,0.804,0.000152,"```json [""eggs"", ""oat milk"", ""spinach"", ""cold brew""] ```"
+t1-capital-qa,1,anthropic,claude-haiku-4-5,30,4,0.692,0.000050,Tokyo
+t1-date-reformat,1,anthropic,claude-haiku-4-5,38,10,0.930,0.000088,2026-03-05
+t2-summarize,2,anthropic,claude-haiku-4-5,78,23,0.949,0.000193,"Remote work has become more common with hybrid schedules, showing mixed producti"
+t2-sentiment,2,anthropic,claude-haiku-4-5,49,4,0.648,0.000069,negative
+t2-tradeoffs,2,anthropic,claude-haiku-4-5,42,141,2.313,0.000747,# SQLite for Your Side Project  ## Advantages - **Zero setup required** — Just a
+t3-word-problem,3,anthropic,claude-haiku-4-5,60,268,3.077,0.001400,# Finding When We Meet  ## Step 1: Find our combined approach speed When driving
+t3-constrained-poem,3,anthropic,claude-haiku-4-5,42,50,1.158,0.000292,"# For Grandfather  Thirty years you climbed the spiral stairs, A steady flame ag"
+t3-plan-justify,3,anthropic,claude-haiku-4-5,61,512,7.364,0.002621,# LLM Cost Autopilot: Three-Step Plan ($10K Budget)  ## Step 1: Instrumentation 
+t1-extract-email,1,ollama,llama3,51,14,14.925,0.000000,The email address is:  mike.chen.realty@example.com
+t1-list-to-json,1,ollama,llama3,33,30,5.653,0.000000,"Here is your grocery list in JSON array of strings format:  [""eggs"", ""oat milk"","
+t1-capital-qa,1,ollama,llama3,33,3,3.395,0.000000,Tokyo
+t1-date-reformat,1,ollama,llama3,37,7,3.034,0.000000,2026-03-05
+t2-summarize,2,ollama,llama3,75,46,6.227,0.000000,Here's a one-sentence summary:  Remote work has seen a significant surge since 2
+t2-sentiment,2,ollama,llama3,50,2,2.492,0.000000,Negative
+t2-tradeoffs,2,ollama,llama3,43,265,30.535,0.000000,Here are three advantages and three disadvantages of using SQLite as the databas
+t3-word-problem,3,ollama,llama3,60,226,25.879,0.000000,Let's break it down step by step!  Let's assume the highway is perfectly straigh
+t3-constrained-poem,3,ollama,llama3,45,54,7.145,0.000000,What a unique request! Here is a four-line poem for your grandfather:  Thirty ye
+t3-plan-justify,3,ollama,llama3,59,512,61.545,0.000000,"I'm excited to help you tackle your LLM API spend! Given your $10,000 budget, I'"
