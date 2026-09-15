@@ -51,10 +51,24 @@ class VerificationResult:
     error: str | None = None
 
 
-def _log(result: VerificationResult, routed_response: Response) -> None:
+def _log(
+    result: VerificationResult,
+    routed_response: Response,
+    verifier_response: Response | None = None,
+) -> None:
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LOG_FILE.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(asdict(result)) + "\n")
+
+    # baseline_cost should be "what BASELINE_MODEL_ID actually costs for this
+    # prompt." When verification ran, we already have a real call to the
+    # top-tier model (verifier_response) - use ITS token counts, not an
+    # estimate from the routed (possibly very different) model's tokenizer.
+    # Only fall back to the routed response's tokens when there's no other
+    # data: the skipped case (routed model already IS the top tier, so its
+    # own tokens are exact) and the error case (verification failed, no
+    # verifier tokens exist).
+    baseline_tokens_source = verifier_response if verifier_response is not None else routed_response
 
     db.log_request(
         {
@@ -66,7 +80,7 @@ def _log(result: VerificationResult, routed_response: Response) -> None:
             "routed_cost": result.routed_cost,
             "routed_latency": routed_response.latency,
             "baseline_cost": db.baseline_cost_for(
-                routed_response.input_tokens, routed_response.output_tokens
+                baseline_tokens_source.input_tokens, baseline_tokens_source.output_tokens
             ),
             "verified": not result.skipped and result.error is None,
             "quality_score": result.quality_score,
@@ -151,7 +165,7 @@ def verify_and_maybe_escalate(
         verification_cost=verification_cost,
         quality_gap=0.0 if passed else round(threshold - score, 4),
     )
-    _log(result, routed_response)
+    _log(result, routed_response, verifier_response)
     return result
 
 

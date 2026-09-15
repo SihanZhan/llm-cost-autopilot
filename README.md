@@ -233,3 +233,17 @@ every doc that quoted the old number. `classifier/data/build_dataset.py`
 was also cleaned up — a handful of near-duplicate prompts (same sentence
 skeleton, different numbers, e.g. two unit-conversion prompts) were
 rewritten for genuine variety; current held-out accuracy is 87.5%.
+
+A second, smaller measurement issue turned up in the same audit pass:
+`baseline_cost` (what a prompt "would have cost on GPT-4o") was estimated
+from the *routed* model's token count for every request, even the ~336
+that got verified — where a real GPT-4o response, with its own real token
+count, already existed from the verification call itself. Fixed in
+`eval/verifier.py` to use the verifier's actual tokens when available. On
+the 500-request run this had been undercounting the baseline by about 1.2%
+(i.e. making the reported savings look very slightly better than reality)
+— small, doesn't reverse any conclusion, so the published 500-request
+numbers above stand as measured rather than triggering a full,
+paid-API-calls re-run; the fix applies going forward. Verified live that
+`baseline_cost` and `verification_cost` now agree exactly for a verified
+request, as they should when both are computed from the same GPT-4o call.
