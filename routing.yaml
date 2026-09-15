@@ -1,4 +1,5 @@
-# Tier -> model mapping. Edit this file to change routing without touching code.
+# Tier -> model mapping. Edit this file (or PUT /v1/routing-config) to
+# change routing without touching code or redeploying.
 # Tiers come from classifier/tiers.py (1=simple, 2=moderate, 3=complex).
 # Each model_id must exist in models.MODEL_REGISTRY (see models.py).
 #

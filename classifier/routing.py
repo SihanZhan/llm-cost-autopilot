@@ -41,6 +41,35 @@ def model_for_tier(tier: int, path: Path = ROUTING_FILE) -> ModelConfig:
     return get_model(config[tier])
 
 
+def update_routing_config(updates: dict[int, str], path: Path = ROUTING_FILE) -> dict[int, str]:
+    """Merge ``updates`` into the current tier -> model_id mapping, validate,
+    and persist back to ``path``. Returns the new effective config.
+
+    Because ``load_routing_config``/``model_for_tier`` read the file fresh on
+    every call (no caching), this takes effect for the very next request —
+    that's what makes PUT /v1/routing-config a live re-route, not a restart.
+    """
+    current = load_routing_config(path)
+    for tier, model_id in updates.items():
+        if tier not in TIERS:
+            raise ValueError(f"invalid tier {tier}; expected one of {TIERS}")
+        get_model(model_id)  # raises KeyError if model_id isn't registered
+    current.update(updates)
+
+    with path.open("w", encoding="utf-8") as fh:
+        fh.write(
+            "# Tier -> model mapping. Edit this file (or PUT /v1/routing-config) to\n"
+            "# change routing without touching code or redeploying.\n"
+            "# Tiers come from classifier/tiers.py (1=simple, 2=moderate, 3=complex).\n"
+            "# Each model_id must exist in models.MODEL_REGISTRY (see models.py).\n"
+            "routing:\n"
+        )
+        for tier in TIERS:
+            fh.write(f"  {tier}: {current[tier]}\n")
+
+    return current
+
+
 if __name__ == "__main__":  # quick manual check: python -m classifier.routing
     for tier in TIERS:
         model = model_for_tier(tier)
