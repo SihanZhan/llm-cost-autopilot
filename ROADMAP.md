@@ -30,9 +30,9 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 ## Phase 4 — Logging and cost dashboard
 
-- [ ] Per-request row: timestamp, prompt hash, complexity tier, routed model, cost, latency, verifier quality score, escalated?
-- [ ] Streamlit dashboard: daily/weekly cost vs. "all GPT-4o" baseline, routing distribution, quality-score distribution, escalation rate over time
-- [ ] Headline metric: cost reduction % prominently displayed
+- [x] Per-request row: timestamp, prompt hash, complexity tier, routed model, cost, latency, verifier quality score, escalated? — [db.py](db.py) (SQLite), logged from [eval/verifier.py](eval/verifier.py)
+- [x] Streamlit dashboard: daily/weekly cost vs. "all GPT-4o" baseline, routing distribution, quality-score distribution, escalation rate over time — [dashboard/app.py](dashboard/app.py)
+- [x] Headline metric: cost reduction % prominently displayed — with an honest second number next to it. See [docs/phase4_notes.md](docs/phase4_notes.md): routing-only savings are 30.4% on a live 45-request seed run, but net savings after escalation cost drop to 3.7% — a real finding about how much a blunt quality check can erode routing's savings, not swept under the rug.
 
 ## Phase 5 — Expose as an API
 
