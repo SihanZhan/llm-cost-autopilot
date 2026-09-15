@@ -39,11 +39,12 @@ def _rows(since: str | None) -> list[dict]:
 
 def chart_cost_comparison(rows: list[dict], out: Path) -> None:
     s = stats.compute_stats(rows)
-    labels = ["All-GPT-4o\nbaseline", "Routed cost\n(before escalation)", "Net cost\n(incl. escalation)"]
-    values = [s["total_baseline_cost"], s["total_routed_cost"], s["net_actual_cost"]]
+    labels = ["All-GPT-4o\nbaseline", "Routed cost\n(verification-free)", "True total cost\n(incl. all verification)"]
+    values = [s["total_baseline_cost"], s["total_routed_cost"], s["true_total_cost"]]
+    bar_colors = [COLORS[3], COLORS[2], COLORS[3] if s["true_total_cost"] > s["total_baseline_cost"] else COLORS[0]]
 
     fig, ax = plt.subplots(figsize=(6, 4.5))
-    bars = ax.bar(labels, values, color=[COLORS[3], COLORS[2], COLORS[0]])
+    bars = ax.bar(labels, values, color=bar_colors)
     ax.set_ylabel("Total cost (USD)")
     ax.set_title(f"Cost vs. all-GPT-4o baseline ({s['n_requests']} requests)")
     for bar, val in zip(bars, values):
@@ -51,7 +52,7 @@ def chart_cost_comparison(rows: list[dict], out: Path) -> None:
                     textcoords="offset points", xytext=(0, 4), ha="center", fontsize=9)
     ax.annotate(
         f"routing-only: {s['pct_saved_routing_only']:.1f}% saved\n"
-        f"net of escalation: {s['pct_saved_net']:.1f}% saved",
+        f"true net (all verification counted): {s['pct_saved_true']:+.1f}%",
         xy=(0.98, 0.95), xycoords="axes fraction", ha="right", va="top", fontsize=10,
         bbox=dict(boxstyle="round", fc="#f5f5f5", ec="#cccccc"),
     )

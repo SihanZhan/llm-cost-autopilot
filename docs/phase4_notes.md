@@ -34,20 +34,31 @@ visually.
 
 ## The headline number needs a second look
 
+> **Correction (2026-09-15, added during Phase 6):** the table below,
+> as originally written, stopped at "net (incl. escalation cost)" and called
+> 3.7% the honest number. It wasn't complete — it left out the verification
+> cost spent checking the 33 requests that *passed* (only 12 of 45 actually
+> escalated; all 45 non-skipped... see corrected table). The true figure for
+> this run is a **3.9% net loss**, not a 3.7% gain. Root-caused and fixed in
+> `stats.py`; see [docs/phase6_notes.md](phase6_notes.md) and
+> [CASE_STUDY.md](../CASE_STUDY.md) for the full story.
+
 30.4% is the number you'd put on a slide, and it's real — but it only counts
 the routed (cheap-model) cost, not what verification actually spent to get
 there. **12 of 45 requests (27%) escalated** — 6/15 at tier 1, 6/15 at tier
-2 — at a combined cost delta of **$0.01863**. Fold that into "what this
-system actually spent" and the picture changes a lot:
+2 — at a combined cost delta of **$0.01863**. But verification ran on all 30
+non-top-tier requests, not just the 12 that failed, at a total cost of
+**$0.02398**. Fold each in turn into "what this system actually spent":
 
-| | routing-only | net (incl. escalation cost) |
-|---|---:|---:|
-| actual spend | $0.04856 | $0.06719 |
-| vs. $0.06980 baseline | **30.4% saved** | **3.7% saved** |
+| | routing only | + cost of fixing failures | + cost of checking passes |
+|---|---:|---:|---:|
+| actual spend | $0.04856 | $0.06719 | $0.07254 |
+| vs. $0.06980 baseline | **30.4% saved** | 3.7% saved | **3.9% MORE than baseline** |
 
-The dashboard shows both numbers side by side rather than leading with only
-the flattering one, and surfaces a warning banner when escalation cost eats
-more than half the routing savings (it does here).
+The middle column is what the dashboard originally showed as "net" — real
+progress over the flattering left column, but still incomplete. The right
+column is the honest bottom line: the system spent more than the baseline
+once every verification dollar is counted, not less.
 
 ## Why so many escalations
 

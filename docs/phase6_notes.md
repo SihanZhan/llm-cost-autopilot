@@ -13,24 +13,42 @@ inference latency, see below).
 
 ## Headline numbers
 
+> **Correction (2026-09-15, same day, found a few hours after this doc was
+> first written):** the "net cost reduction" row below was computed by
+> `stats.py` as routed cost + the extra cost of the 133 *escalated*
+> requests. It never added back the verification cost spent checking the
+> other 203 requests that passed — money that was spent regardless of the
+> outcome. That's $0.217, more than the entire savings the "net" row
+> claimed. Corrected numbers:
+
 | | value |
 |---|---:|
 | requests | 500 |
-| routing-only cost reduction | **25.7%** |
-| net cost reduction (incl. escalation cost) | **3.7%** |
+| routing-only cost reduction (verification-free) | **25.7%** |
+| ~~net cost reduction (incl. escalation cost)~~ *(incomplete, see above)* | ~~3.7%~~ |
+| **true net cost reduction (all verification counted)** | **-2.6% (a net loss)** |
 | escalation rate | 26.6% (133/500) |
 | quality parity (pass rate among verified requests) | 60.4% (203/336) |
 | total routed cost | $0.5698 |
 | all-GPT-4o baseline cost | $0.7668 |
-| net actual cost | $0.7381 |
+| verification cost (all 336 checks, pass or fail) | $0.2166 |
+| true total cost | $0.7864 |
 
-**The 3.7% net-savings number is not a fluke of the earlier 45-request
-sample** — it's byte-for-byte the same at 500 requests (3.74% both times),
-which is a stronger claim than either number alone: whatever is driving the
-gap between routing-only and net savings is systematic, not sampling noise.
-Routing-only savings did move (30.4% → 25.7%), which makes sense — a larger,
-more varied sample pulls the average toward the true mix of tier costs
-rather than whatever the smaller sample happened to draw.
+**The corrected true-net figure is not a fluke of the earlier 45-request
+sample either** — recomputed on that run's data it's -3.9%, the same sign
+and the same rough magnitude as this 500-request run's -2.6%. Both runs
+independently say the same thing: as built, this system spends more than
+the baseline it was meant to beat. Routing-only savings did move between
+samples (30.4% → 25.7%), which makes sense — a larger, more varied sample
+pulls the average toward the true mix of tier costs. The sign of the *true*
+net number didn't move: negative both times.
+
+**How this was found:** by asking, in plain terms, "if verification calls
+the expensive model on two-thirds of all traffic, how could that possibly
+be cheaper than just using the expensive model?" — a question about the
+mechanism, not the metric. Working through the actual dollar figures by
+hand (not just trusting `stats.py`'s output) surfaced the gap. See
+[CASE_STUDY.md](../CASE_STUDY.md) for the full corrected writeup.
 
 ## Where the escalations come from, confirmed at scale
 
@@ -48,8 +66,10 @@ rates. The `general` fallback — which catches the majority of traffic
 (218/500, 44%) because most prompts don't contain one of the three
 use-case trigger keywords — escalates *more than half the time*. That's not
 "occasionally too strict," that's the dominant driver of both the accuracy
-regression (Phases 3/5) and the cost erosion (Phase 4) this project has
-been tracking. At this point across four phases of consistent evidence, this
+regression (Phases 3/5) and the cost problem (Phase 4/6) this project has
+been tracking — severe enough, once counted fully, to flip the whole
+system into a net loss rather than merely eroding its savings. At this
+point across four phases of consistent evidence, this
 isn't a finding anymore, it's a known, unfixed defect: `eval.quality`'s
 `general` bucket needs a real check (an LLM-as-judge like `summarization`
 already has, or research into what threshold token-overlap should actually

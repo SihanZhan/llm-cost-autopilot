@@ -59,22 +59,31 @@ def main() -> None:
 
     st.markdown("### Cost saved vs. sending everything to GPT-4o")
     m1, m2, m3 = st.columns(3)
-    m1.metric("Routing-only reduction", f"{s['pct_saved_routing_only']:.1f}%", help="Routed cost vs. baseline, before counting what escalations cost.")
-    m2.metric("Net reduction (incl. escalations)", f"{s['pct_saved_net']:.1f}%", help="Routed cost + escalation cost delta vs. baseline — what this system actually spent.")
+    m1.metric("Routing-only reduction", f"{s['pct_saved_routing_only']:.1f}%", help="Routed cost vs. baseline. Ignores verification entirely - pretends checking is free.")
+    m2.metric("True net reduction", f"{s['pct_saved_true']:.1f}%", help="Every dollar spent - routed cost + ALL verification calls (pass or fail) - vs. baseline. The honest bottom line.")
     m3.metric("All-GPT-4o baseline", f"${s['total_baseline_cost']:.4f}")
 
-    if s["pct_saved_net"] < s["pct_saved_routing_only"] * 0.5:
+    if s["pct_saved_true"] < 0:
+        st.error(
+            f"This system currently costs MORE than the baseline once every dollar is counted: "
+            f"${s['true_total_cost']:.4f} spent vs. ${s['total_baseline_cost']:.4f} baseline "
+            f"({s['pct_saved_true']:.1f}%). Verification checks every non-top-tier request "
+            f"(${s['verification_cost']:.4f} total), not just the ones that fail - that cost is "
+            f"paid whether or not the check catches anything. See docs/phase6_notes.md and "
+            f"CASE_STUDY.md for the full breakdown."
+        )
+    elif s["pct_saved_true"] < s["pct_saved_routing_only"] * 0.5:
         st.warning(
-            f"Escalations are eating most of the routing savings on this data: "
-            f"${s['escalation_cost_delta']:.4f} in escalation cost turns a {s['pct_saved_routing_only']:.1f}% "
-            f"routing-only reduction into only {s['pct_saved_net']:.1f}% net. "
+            f"Verification overhead is eating most of the routing savings on this data: "
+            f"a {s['pct_saved_routing_only']:.1f}% routing-only reduction becomes only "
+            f"{s['pct_saved_true']:.1f}% once every verification dollar is counted. "
             f"See docs/phase4_notes.md — this traces back to the same overly strict "
             f"'general' use-case check flagged in docs/phase3_notes.md."
         )
 
     st.caption(
-        f"Actual routed cost: ${s['total_routed_cost']:.4f}  •  verification overhead: ${s['verification_cost']:.4f}  •  "
-        f"escalation cost delta: ${s['escalation_cost_delta']:.4f}  •  "
+        f"Routed cost: ${s['total_routed_cost']:.4f}  •  verification cost (all checks, pass or fail): ${s['verification_cost']:.4f}  •  "
+        f"escalation cost delta: ${s['escalation_cost_delta']:.4f}  •  true total spent: ${s['true_total_cost']:.4f}  •  "
         f"{s['n_requests']} requests across {df['date'].nunique()} day(s) of logged data"
     )
 

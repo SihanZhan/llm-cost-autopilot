@@ -10,7 +10,7 @@ exercised live (real provider calls, not mocked).
 | `GET /health` | 200, `{"status": "ok"}` |
 | `POST /v1/completions` | Two live requests — a tier-1 extraction (routed to `llama3`, $0.0000) and a tier-3 constrained poem (routed to `gpt-4o`, $0.00041) — both returned real output with a `why` field explaining the tier + routing.yaml mapping |
 | `GET /v1/models` | Returns all 5 registry entries with real per-token pricing and measured `avg_latency` |
-| `GET /v1/stats` | Returns the exact same numbers as the Phase 4 dashboard (30.4% routing-only, 3.7% net) — see below, they share `stats.compute_stats()` |
+| `GET /v1/stats` | Returns the exact same numbers as the Phase 4 dashboard (routing-only + true net) — they share `stats.compute_stats()`, so a correction made there (see docs/phase6_notes.md) reaches both automatically |
 | `PUT /v1/routing-config` | Changed tier 1 from `llama3` to `claude-haiku-4-5`, confirmed via `GET`, confirmed an invalid `model_id` is rejected with `400`, reverted back to `llama3` |
 | `GET /v1/routing-config` | Not in the roadmap's list, but added since PUT-without-GET is an awkward API to ship |
 

@@ -6,10 +6,11 @@ handle it at acceptable quality**, and continuously verifies that those routing
 decisions were correct.
 
 > **500 live requests, measured end to end: 25.7% cheaper than an all-GPT-4o
-> baseline on routing alone — 3.7% net once the cost of verifying those
-> decisions is counted too.** Full breakdown, including exactly where that
-> gap comes from and what it would take to close it, in
-> [CASE_STUDY.md](CASE_STUDY.md).
+> baseline on routing alone — but 2.6% *more expensive* once every dollar
+> spent verifying those decisions is counted too.** The routing idea works;
+> checking every answer against the top-tier model, pass or fail, costs more
+> than it saves. Full breakdown, including exactly where that gap comes
+> from and what it would take to fix it, in [CASE_STUDY.md](CASE_STUDY.md).
 
 ## The problem
 
@@ -190,11 +191,11 @@ paper over.
 SQLite ([db.py](db.py)), and [dashboard/app.py](dashboard/app.py) visualizes
 it — headline cost-reduction metric, daily cost vs. baseline, routing mix,
 quality-score distribution, escalation rate. A live 45-request seed run put
-routing-only savings at 30.4%, but [docs/phase4_notes.md](docs/phase4_notes.md)
-shows the honest follow-through: once escalation cost is counted, net
-savings drop to 3.7% — direct fallout from the same weak `general`-bucket
-quality check Phase 3 flagged, now shown to be costing real money, not just
-mislabeling training data.
+routing-only savings at 30.4%; [docs/phase4_notes.md](docs/phase4_notes.md)
+originally reported 3.7% net after counting escalation cost — that number
+was itself later found to be incomplete (see Phase 6) and the true figure
+is a small net loss, direct fallout from the same weak `general`-bucket
+quality check Phase 3 flagged.
 
 **Phase 5 (API) — done.** [api/main.py](api/main.py) exposes the full
 pipeline over HTTP; every endpoint was exercised live, including
@@ -210,13 +211,25 @@ accuracy is now 85.4% after three rounds of naive feedback (97.8% → 95.7% →
 `general`-bucket quality check.
 
 **Phase 6 (portfolio polish) — done.** A 500-request live load test
-(8 concurrent workers, 0 failures, ~7.5 min) confirmed the numbers at scale:
-25.7% routing-only cost reduction, **3.7% net** — matching the earlier
-45-request sample's 3.74% almost exactly, which is the strongest evidence
-yet that the gap is systematic rather than sampling noise. Traced it to a
-specific root cause and quantified it precisely: the `general`-bucket
-quality check (raw token overlap, no real understanding of the answer)
-handles 44% of all traffic and escalates 56% of the time, vs. 0-24% for the
-three purpose-built checks. See [CASE_STUDY.md](CASE_STUDY.md) for the
-full writeup and [docs/phase6_notes.md](docs/phase6_notes.md) for the raw
-numbers, or [ROADMAP.md](ROADMAP.md) for the complete phase-by-phase log.
+(8 concurrent workers, 0 failures, ~7.5 min) confirmed the routing-only
+number at scale (25.7%) and initially reported 3.7% net, matching the
+45-request sample's 3.74% almost exactly. That consistency was real, but
+the metric itself was still wrong: it added back the cost of the 133
+escalated requests but never the verification cost spent checking the 203
+that *passed*. Correcting that — **the honest number is a 2.6% net loss**,
+not a 3.7% gain — is now the headline finding of this project, documented
+in [CASE_STUDY.md](CASE_STUDY.md) alongside the root cause (the
+`general`-bucket check handles 44% of traffic and escalates 56% of the
+time, vs. 0-24% for the three purpose-built checks). See
+[docs/phase6_notes.md](docs/phase6_notes.md) for the raw numbers or
+[ROADMAP.md](ROADMAP.md) for the complete phase-by-phase log.
+
+**Post-launch correction (2026-09-15).** The 3.7%/net-loss discrepancy above
+was found after the fact, by working through *why* checking with two models
+could ever be cheaper than just using one — it couldn't, and the metric in
+`stats.py` was silently omitting the verification cost paid on passing
+requests. Fixed in `stats.py`, propagated through the API, dashboard, and
+every doc that quoted the old number. `classifier/data/build_dataset.py`
+was also cleaned up — a handful of near-duplicate prompts (same sentence
+skeleton, different numbers, e.g. two unit-conversion prompts) were
+rewritten for genuine variety; current held-out accuracy is 87.5%.

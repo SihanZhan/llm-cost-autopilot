@@ -1,11 +1,12 @@
 # Case study: LLM Cost Autopilot
 
 **Routing 500 live requests through a complexity-based router cut LLM API
-spend 25.7% against an all-GPT-4o baseline — but a second, harder number
-matters just as much: net of what the system spent verifying its own
-decisions, savings fell to 3.7%. Finding that gap, tracing it to its exact
-cause, and quantifying it precisely is the actual result of this project,
-not the flattering number alone.**
+spend 25.7% against an all-GPT-4o baseline. Once every dollar spent
+verifying those routing decisions is counted too, the system actually cost
+2.6% *more* than the baseline — a net loss, not a net win. Finding that,
+tracing it to its exact cause, and correcting an earlier version of this
+same report that understated the problem (it showed 3.7% saved, not a loss)
+is the actual result of this project, not the flattering number alone.**
 
 ## The idea
 
@@ -65,14 +66,33 @@ and local Ollama calls):
 ![Cost vs. all-GPT-4o baseline](docs/images/cost_comparison.png)
 
 Routing alone looks great: **25.7% cheaper than sending everything to
-GPT-4o.** But 26.6% of requests (133/500) failed the quality check and got
-escalated — meaning the system paid for *both* the cheap answer and the
-top-tier one on more than a quarter of all traffic. Once that escalation
-cost is counted as what it is — real money this system spent — net savings
-drop to **3.7%**. That number showed up twice, independently: once on an
-earlier 45-request sample (3.74%) and again here at 500 requests (3.74%,
-to two decimal places). That's not sampling noise; it's a real, stable
-property of this system as built.
+GPT-4o.** That number is real, but it's answering a narrower question than
+it looks like it is — "what did the cheap/expensive model calls cost,
+ignoring verification entirely?" Here's what verification actually costs:
+
+| | what's counted | total spent | vs. $0.7668 baseline |
+|---|---|---:|---:|
+| Routing only | whichever model answered | $0.5698 | 25.7% saved |
+| + cost of fixing wrong answers | + the 133 escalation replacements | $0.7381 | 3.7% saved |
+| **+ cost of checking right answers** | **+ verification on all 336 checked requests, pass or fail** | **$0.7864** | **2.6% MORE than baseline** |
+
+The middle row is the trap. 336 of the 500 requests got double-checked
+against the top-tier model — not just the ones that turned out wrong. Only
+133 of those 336 actually needed the top-tier model's answer; the other 203
+passed, and the system paid the top-tier model's rate to confirm that
+anyway. That's money spent with nothing to show for it: you already had a
+fine answer, and paid again to be told so.
+
+An earlier version of this report stopped at the middle row and called
+**3.7% saved** the honest number — an improvement over the flattering 25.7%,
+but still incomplete, because it only added back the cost of the 133
+failures and never added back the verification spend on the 203 passes.
+That gap is $0.217 — bigger than the entire "savings" the middle row
+claimed. The corrected bottom row is what this system actually spent:
+**more than the naive baseline it was built to beat.** This was caught by
+asking the sharper question — "if you're calling both models on two-thirds
+of traffic, how is that ever cheaper than calling just one?" — rather than
+stopping once a number looked responsible enough to publish.
 
 ## Where the money actually goes
 
@@ -102,7 +122,12 @@ example and folded back into the classifier's next retrain. That mechanism
 works exactly as designed. Which is the problem: across three retrains, each
 one triggered by real escalations from real runs, held-out accuracy went
 **97.8% → 95.7% → 85.4%** — still above the 80% target, but a clean,
-repeating trend, not noise. The same over-eager `general`-bucket check that
+repeating trend, not noise. (Separately, a handful of near-duplicate
+hand-labeled prompts — e.g. "convert 5 miles to km" / "convert 3 kg to
+lbs," same skeleton, different numbers — were rewritten for more genuine
+variety, and accuracy on the current dataset sits at 87.5%; that's a data-
+quality fix, not evidence the feedback-loop problem went away.) The same
+over-eager `general`-bucket check that
 erodes cost savings is also quietly teaching the classifier the wrong
 lesson every time it fires: a grocery-list-to-JSON request or a "list three
 pros and cons" prompt isn't actually complex, but the verifier says it

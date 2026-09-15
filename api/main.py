@@ -83,9 +83,11 @@ class StatsResponse(BaseModel):
     total_baseline_cost: float
     escalation_cost_delta: float
     verification_cost: float
-    net_actual_cost: float
+    served_answer_cost: float
+    true_total_cost: float
     pct_saved_routing_only: float
-    pct_saved_net: float
+    pct_saved_served_answer: float
+    pct_saved_true: float
     routing_distribution: dict[str, int]
     tier_distribution: dict[int, int]
 

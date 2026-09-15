@@ -32,7 +32,7 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 - [x] Per-request row: timestamp, prompt hash, complexity tier, routed model, cost, latency, verifier quality score, escalated? — [db.py](db.py) (SQLite), logged from [eval/verifier.py](eval/verifier.py)
 - [x] Streamlit dashboard: daily/weekly cost vs. "all GPT-4o" baseline, routing distribution, quality-score distribution, escalation rate over time — [dashboard/app.py](dashboard/app.py)
-- [x] Headline metric: cost reduction % prominently displayed — with an honest second number next to it. See [docs/phase4_notes.md](docs/phase4_notes.md): routing-only savings are 30.4% on a live 45-request seed run, but net savings after escalation cost drop to 3.7% — a real finding about how much a blunt quality check can erode routing's savings, not swept under the rug.
+- [x] Headline metric: cost reduction % prominently displayed — with an honest second number next to it. See [docs/phase4_notes.md](docs/phase4_notes.md): routing-only savings are 30.4% on a live 45-request seed run. The "net" figure reported there at the time (3.7%) was later found to omit verification cost on passing requests and corrected in Phase 6 to a 2.6% net loss — the metric bug, and the fix, are documented rather than quietly patched.
 
 ## Phase 5 — Expose as an API
 
@@ -46,5 +46,5 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 - [x] Load test: 500–1,000 diverse prompts through the system — [eval/load_test.py](eval/load_test.py), live run: 500 requests, 8 concurrent workers, 0 failures, 448s. See [docs/phase6_notes.md](docs/phase6_notes.md).
 - [x] Final cost-savings report + dashboard screenshots — no browser available in this environment to screenshot the live Streamlit dashboard, so [eval/report_charts.py](eval/report_charts.py) renders the same `stats.compute_stats()` data to static PNGs instead ([docs/images/](docs/images)) — real logged data, not mockups.
-- [x] Case study: "reduced LLM API costs by X% while maintaining Y% quality parity" — lead with the number, explain routing logic, show the feedback loop — [CASE_STUDY.md](CASE_STUDY.md). Leads with both real numbers (25.7% routing-only / 3.7% net) rather than the flattering one alone, since the gap itself is the more interesting, defensible finding.
+- [x] Case study: "reduced LLM API costs by X% while maintaining Y% quality parity" — lead with the number, explain routing logic, show the feedback loop — [CASE_STUDY.md](CASE_STUDY.md). Leads with the routing-only number (25.7%) *and* the corrected true bottom line (2.6% net loss, once all verification cost is counted) rather than a single flattering percentage, since the gap between them — and finding it — is the more interesting, defensible finding.
 - [x] README architecture diagram + setup instructions with the savings number front and center — diagram updated to the full built system (API/verifier/SQLite/dashboard/worker); headline number now the first thing under the title in [README.md](README.md).
