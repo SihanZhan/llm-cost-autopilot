@@ -36,11 +36,11 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 
 ## Phase 5 — Expose as an API
 
-- [ ] `POST /v1/completions` — standard chat-completion request; router picks the model; response includes which model and why
-- [ ] `GET /v1/models` — available models and costs
-- [ ] `GET /v1/stats` — cost-savings summary
-- [ ] `PUT /v1/routing-config` — update tier→model mappings without redeploy
-- [ ] docker-compose: API service + async verification worker + SQLite
+- [x] `POST /v1/completions` — standard chat-completion request; router picks the model; response includes which model and why — [api/main.py](api/main.py), live-tested (tier 1 -> llama3, tier 3 -> gpt-4o)
+- [x] `GET /v1/models` — available models and costs — same module
+- [x] `GET /v1/stats` — cost-savings summary — backed by a new shared [stats.py](stats.py) (the dashboard now uses it too, so the two can't disagree)
+- [x] `PUT /v1/routing-config` — update tier→model mappings without redeploy — live-tested: changed, confirmed, rejected an invalid model_id with 400, reverted
+- [x] docker-compose: API service + async retrain worker + SQLite — [docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile), [classifier/retrain_worker.py](classifier/retrain_worker.py). Config validated (`docker compose config`); **not run end-to-end** — no Docker daemon available in this environment, see [docs/phase5_notes.md](docs/phase5_notes.md). Running the worker once by hand pushed the classifier to 238 training rows / 85.4% accuracy — still above target, but a third straight drop (97.8% → 95.7% → 85.4%) confirming Phase 3/4's finding is a real trend, not a one-off.
 
 ## Phase 6 — Portfolio polish
 

@@ -78,9 +78,13 @@ flowchart LR
 | [db.py](db.py) | SQLite log of every request (hashed prompt, tier, routed model, cost, latency, quality score, escalation) — the dashboard's data source |
 | [eval/seed_dashboard.py](eval/seed_dashboard.py) | Routes a tier-balanced sample of the labeled dataset through the live pipeline to populate the dashboard with real data |
 | [dashboard/app.py](dashboard/app.py) | Streamlit dashboard: headline cost-reduction metric, daily cost vs. baseline, routing distribution, quality-score distribution, escalation rate over time |
+| [stats.py](stats.py) | `compute_stats()` — the cost-savings summary, shared by `GET /v1/stats` and the dashboard so they can't disagree |
+| [api/main.py](api/main.py) | FastAPI service: `POST /v1/completions`, `GET /v1/models`, `GET /v1/stats`, `GET`/`PUT /v1/routing-config`, `GET /health` |
+| [classifier/retrain_worker.py](classifier/retrain_worker.py) | Loops: harvest routing-failure feedback, retrain if anything new came in, sleep. The second docker-compose service. |
+| [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
-More modules (`router/`, `api/`) land as the roadmap phases are built.
+More modules (`router/`) land as the roadmap phases are built.
 
 ## Baseline (Phase 1)
 
@@ -120,6 +124,22 @@ python -m eval.seed_dashboard   # route a live sample into autopilot.db (default
 streamlit run dashboard/app.py  # view the cost/quality dashboard
 ```
 
+## API (Phase 5)
+
+```bash
+uvicorn api.main:app --reload      # local dev, http://127.0.0.1:8000/docs
+docker compose up --build          # api + retrain-worker containers
+```
+
+```bash
+curl -X POST localhost:8000/v1/completions -H "Content-Type: application/json" \
+  -d '{"prompt": "Summarize this in one sentence: ..."}'
+curl localhost:8000/v1/models
+curl localhost:8000/v1/stats
+curl -X PUT localhost:8000/v1/routing-config -H "Content-Type: application/json" \
+  -d '{"routing": {"1": "claude-haiku-4-5"}}'
+```
+
 ## Status
 
 **Phase 1 (unified model interface) — done.** Registry, unified `send_request`,
@@ -146,4 +166,17 @@ routing-only savings at 30.4%, but [docs/phase4_notes.md](docs/phase4_notes.md)
 shows the honest follow-through: once escalation cost is counted, net
 savings drop to 3.7% — direct fallout from the same weak `general`-bucket
 quality check Phase 3 flagged, now shown to be costing real money, not just
-mislabeling training data. The API is not built yet. See [ROADMAP.md](ROADMAP.md).
+mislabeling training data.
+
+**Phase 5 (API) — done.** [api/main.py](api/main.py) exposes the full
+pipeline over HTTP; every endpoint was exercised live, including
+`PUT /v1/routing-config` actually re-routing traffic without a restart.
+`GET /v1/stats` and the dashboard now share one `stats.py` implementation.
+Docker Compose defines the two-service deployment (`api` + a
+`retrain-worker` that automates Phase 3's feedback loop, previously a manual
+step) — config-validated but not run end-to-end, since this environment has
+no live Docker daemon; see [docs/phase5_notes.md](docs/phase5_notes.md).
+Running the retrain worker once by hand extended the trend from Phases 3-4:
+accuracy is now 85.4% after three rounds of naive feedback (97.8% → 95.7% →
+85.4%) — still above target, but a real, repeating cost of not fixing the
+`general`-bucket quality check. See [ROADMAP.md](ROADMAP.md).
