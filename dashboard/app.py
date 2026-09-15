@@ -1,0 +1,148 @@
+"""Phase 4: Streamlit cost dashboard.
+
+Reads every logged request from db.py's SQLite table (no live API calls —
+this only visualizes what eval.pipeline / eval.demo / eval.seed_dashboard
+already ran and logged) and renders:
+
+  - the headline metric: cost saved vs. sending every request to GPT-4o
+  - daily cost, actual vs. that baseline
+  - routing distribution (which model handled what share of requests)
+  - quality-score distribution from the verifier
+  - escalation rate over time
+
+Usage:
+    streamlit run dashboard/app.py
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import db  # noqa: E402  (needs the sys.path insert above)
+
+st.set_page_config(page_title="LLM Cost Autopilot", page_icon="💸", layout="wide")
+
+
+@st.cache_data(ttl=30)
+def load_data() -> pd.DataFrame:
+    rows = db.fetch_requests()
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["date"] = df["timestamp"].dt.date
+    for col in ("verified", "passed", "escalated"):
+        df[col] = df[col].astype("boolean")
+    return df
+
+
+def main() -> None:
+    st.title("💸 LLM Cost Autopilot")
+    st.caption("Cost and quality dashboard — routing decisions vs. an all-GPT-4o baseline")
+
+    df = load_data()
+    if df.empty:
+        st.warning(
+            "No requests logged yet. Run `python -m eval.demo` or "
+            "`python -m eval.seed_dashboard` to generate data, then reload."
+        )
+        return
+
+    # --- Headline metric -------------------------------------------------
+    total_routed = df["routed_cost"].sum()
+    total_baseline = df["baseline_cost"].sum()
+    escalation_delta = df.loc[df["escalated"], "cost_delta"].sum()
+    verification_cost = df["verification_cost"].sum()
+    net_actual = total_routed + escalation_delta
+
+    pct_saved_routing = (total_baseline - total_routed) / total_baseline * 100 if total_baseline else 0.0
+    pct_saved_net = (total_baseline - net_actual) / total_baseline * 100 if total_baseline else 0.0
+
+    st.markdown("### Cost saved vs. sending everything to GPT-4o")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Routing-only reduction", f"{pct_saved_routing:.1f}%", help="Routed cost vs. baseline, before counting what escalations cost.")
+    m2.metric("Net reduction (incl. escalations)", f"{pct_saved_net:.1f}%", help="Routed cost + escalation cost delta vs. baseline — what this system actually spent.")
+    m3.metric("All-GPT-4o baseline", f"${total_baseline:.4f}")
+
+    if pct_saved_net < pct_saved_routing * 0.5:
+        st.warning(
+            f"Escalations are eating most of the routing savings on this data: "
+            f"${escalation_delta:.4f} in escalation cost turns a {pct_saved_routing:.1f}% "
+            f"routing-only reduction into only {pct_saved_net:.1f}% net. "
+            f"See docs/phase4_notes.md — this traces back to the same overly strict "
+            f"'general' use-case check flagged in docs/phase3_notes.md."
+        )
+
+    st.caption(
+        f"Actual routed cost: ${total_routed:.4f}  •  verification overhead: ${verification_cost:.4f}  •  "
+        f"escalation cost delta: ${escalation_delta:.4f}  •  "
+        f"{len(df)} requests across {df['date'].nunique()} day(s) of logged data"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    # --- Daily cost: actual vs. baseline ----------------------------------
+    with col1:
+        st.subheader("Daily cost: actual vs. baseline")
+        daily = df.groupby("date")[["routed_cost", "baseline_cost"]].sum()
+        daily = daily.rename(columns={"routed_cost": "actual", "baseline_cost": "all-GPT-4o baseline"})
+        st.bar_chart(daily)
+        if df["date"].nunique() == 1:
+            st.caption("Only one day of logged data so far — this fills in as more runs accumulate.")
+
+    # --- Routing distribution ----------------------------------------------
+    with col2:
+        st.subheader("Routing distribution")
+        dist = df["routed_model"].value_counts()
+        st.bar_chart(dist)
+
+    col3, col4 = st.columns(2)
+
+    # --- Quality-score distribution ------------------------------------
+    with col3:
+        st.subheader("Quality-score distribution")
+        scored = df["quality_score"].dropna()
+        if scored.empty:
+            st.info("No scored requests yet (all skipped or unverified).")
+        else:
+            bins = pd.cut(scored, bins=[0, 0.2, 0.4, 0.6, 0.8, 1.0001], right=False)
+            counts = bins.value_counts().sort_index()
+            counts.index = [str(i) for i in counts.index]
+            st.bar_chart(counts)
+            unverified = int((~df["verified"]).sum())
+            st.caption(f"{len(scored)} verified requests scored, {unverified} skipped or unverified")
+
+    # --- Escalation rate over time ------------------------------------
+    with col4:
+        st.subheader("Escalation rate over time")
+        verified = df[df["verified"]]
+        daily_esc = verified.groupby("date")["escalated"].mean() * 100
+        if daily_esc.empty:
+            st.info("No verified requests yet.")
+        else:
+            st.line_chart(daily_esc.rename("escalation rate (%)"))
+
+    st.divider()
+    st.subheader("Raw requests")
+    st.dataframe(
+        df[
+            [
+                "timestamp", "prompt_hash", "use_case", "tier", "routed_model",
+                "routed_cost", "routed_latency", "baseline_cost", "quality_score",
+                "passed", "escalated", "final_model", "cost_delta",
+            ]
+        ].sort_values("timestamp", ascending=False),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+if __name__ == "__main__":
+    main()
