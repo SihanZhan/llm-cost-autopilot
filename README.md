@@ -5,6 +5,12 @@ scores each request's complexity, routes it to the **cheapest model that can
 handle it at acceptable quality**, and continuously verifies that those routing
 decisions were correct.
 
+> **500 live requests, measured end to end: 25.7% cheaper than an all-GPT-4o
+> baseline on routing alone — 3.7% net once the cost of verifying those
+> decisions is counted too.** Full breakdown, including exactly where that
+> gap comes from and what it would take to close it, in
+> [CASE_STUDY.md](CASE_STUDY.md).
+
 ## The problem
 
 Teams running LLMs at scale over-provision almost every call — sending
@@ -12,36 +18,45 @@ reformatting and extraction tasks to the same frontier model they use for
 multi-step reasoning. Most of that spend is waste. LLM Cost Autopilot treats
 model selection as a routing decision instead of a hard-coded constant.
 
-**Headline metric:** cost reduction vs. sending every request to the most
-expensive model, measured on a fixed benchmark set while holding a quality bar.
-
 ## How it works
 
 ```mermaid
 flowchart LR
-    req[Incoming request] --> clf[Complexity classifier]
-    clf -->|Tier 1: simple| cheap[Haiku / local Llama]
-    clf -->|Tier 2: moderate| mid[GPT-4o-mini / Sonnet]
+    user[Caller] --> api[POST /v1/completions<br/>FastAPI]
+    api --> clf[Complexity classifier<br/>scikit-learn]
+    clf -->|Tier 1: simple| cheap[Llama 3 local]
+    clf -->|Tier 2: moderate| mid[GPT-4o-mini]
     clf -->|Tier 3: complex| top[GPT-4o]
-    cheap --> resp[Response + metadata]
+    cheap --> resp[Response + why]
     mid --> resp
     top --> resp
-    resp --> user[Caller]
-    resp -.async.-> verify[Quality verifier<br/>LLM-as-judge vs. top tier]
-    verify -->|divergence| esc[Auto-escalate + log failure]
-    esc -.feedback.-> clf
+    resp --> api
+    api --> user
+
+    resp -.async, non-blocking.-> verify[Quality verifier<br/>eval.verifier]
+    verify -->|divergence| esc[Auto-escalate:<br/>swap in top-tier answer]
+    verify --> logdb[(SQLite<br/>autopilot.db)]
+    esc --> logdb
+    esc -.feedback.-> worker[Retrain worker<br/>harvest + retrain]
+    worker -.updates.-> clf
+    logdb --> dash[Streamlit dashboard]
+    logdb --> stats[GET /v1/stats]
 ```
 
 1. **Classifier** extracts lightweight features (token count, instruction verbs
    like *analyze* / *compare*, constraint count, whether context is supplied,
    output-format complexity) and assigns a complexity tier.
-2. **Router** maps the tier to a model via a configurable YAML — swap models
-   without touching code.
-3. **Verifier** runs asynchronously after the response is returned: it re-runs
-   the prompt against the top-tier model, scores agreement, and on significant
-   divergence auto-escalates and logs a routing failure.
-4. **Feedback loop** turns every routing failure into a new labeled training
-   example; the classifier retrains on accumulated failures.
+2. **Router** maps the tier to a model via a configurable YAML (also live-editable
+   via `PUT /v1/routing-config`) — swap models without touching code or redeploying.
+3. **API** returns the routed response immediately; it doesn't wait on verification.
+4. **Verifier** runs asynchronously on a background thread: it re-runs the
+   prompt against the top-tier model, scores agreement with a per-use-case
+   check, and on significant divergence auto-escalates (swaps in the
+   top-tier answer) and logs the outcome to SQLite.
+5. **Feedback loop** turns every escalation into a new labeled training
+   example; a worker process harvests them and retrains the classifier.
+6. **Dashboard and `/v1/stats`** read the same SQLite log and the same
+   `stats.py` aggregation, so they can't disagree with each other.
 
 ## Tech stack
 
@@ -82,6 +97,9 @@ flowchart LR
 | [api/main.py](api/main.py) | FastAPI service: `POST /v1/completions`, `GET /v1/models`, `GET /v1/stats`, `GET`/`PUT /v1/routing-config`, `GET /health` |
 | [classifier/retrain_worker.py](classifier/retrain_worker.py) | Loops: harvest routing-failure feedback, retrain if anything new came in, sleep. The second docker-compose service. |
 | [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
+| [eval/load_test.py](eval/load_test.py) | Routes 500+ prompts concurrently through the full live pipeline; per-prompt error handling so one provider hiccup doesn't sink the run |
+| [eval/report_charts.py](eval/report_charts.py) | Renders the dashboard's key numbers to static PNGs (matplotlib) from the same `stats.compute_stats()` data — no browser needed |
+| [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, and the escalation-cost/feedback-loop finding traced to its root cause |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
 More modules (`router/`) land as the roadmap phases are built.
@@ -140,6 +158,16 @@ curl -X PUT localhost:8000/v1/routing-config -H "Content-Type: application/json"
   -d '{"routing": {"1": "claude-haiku-4-5"}}'
 ```
 
+## Load test (Phase 6)
+
+```bash
+python -m eval.load_test --n 500 --workers 8   # ~$0.6-0.8, ~8 min
+python -m eval.report_charts --since <start timestamp load_test prints>
+```
+
+See [CASE_STUDY.md](CASE_STUDY.md) for the results and
+[docs/phase6_notes.md](docs/phase6_notes.md) for the full breakdown.
+
 ## Status
 
 **Phase 1 (unified model interface) — done.** Registry, unified `send_request`,
@@ -179,4 +207,16 @@ no live Docker daemon; see [docs/phase5_notes.md](docs/phase5_notes.md).
 Running the retrain worker once by hand extended the trend from Phases 3-4:
 accuracy is now 85.4% after three rounds of naive feedback (97.8% → 95.7% →
 85.4%) — still above target, but a real, repeating cost of not fixing the
-`general`-bucket quality check. See [ROADMAP.md](ROADMAP.md).
+`general`-bucket quality check.
+
+**Phase 6 (portfolio polish) — done.** A 500-request live load test
+(8 concurrent workers, 0 failures, ~7.5 min) confirmed the numbers at scale:
+25.7% routing-only cost reduction, **3.7% net** — matching the earlier
+45-request sample's 3.74% almost exactly, which is the strongest evidence
+yet that the gap is systematic rather than sampling noise. Traced it to a
+specific root cause and quantified it precisely: the `general`-bucket
+quality check (raw token overlap, no real understanding of the answer)
+handles 44% of all traffic and escalates 56% of the time, vs. 0-24% for the
+three purpose-built checks. See [CASE_STUDY.md](CASE_STUDY.md) for the
+full writeup and [docs/phase6_notes.md](docs/phase6_notes.md) for the raw
+numbers, or [ROADMAP.md](ROADMAP.md) for the complete phase-by-phase log.
