@@ -1,16 +1,21 @@
 """Per-use-case quality scoring for the verification loop.
 
-Three request types get the purpose-built check the project brief calls for
-(extraction: field coverage, classification: label match, summarization:
-LLM-as-judge); everything else falls back to a lightweight token-overlap
-heuristic. Every scorer returns ``(score, extra_cost)`` — a float in [0, 1]
-plus whatever it spent doing the check (only the judge call spends anything),
-so a single QUALITY_THRESHOLDS table can gate all of them and the verifier
-can still account for every dollar.
+Three request types get the purpose-built check the project brief calls for:
+- extraction: field coverage — detect typed fields (email, date, dollar
+  amount, phone, ...) in both outputs and check whether the fields the
+  top-tier model found are also present in the routed model's answer.
+- classification: exact label match against the top-tier model.
+- summarization: LLM-as-judge, scored 1-5.
+Everything else falls back to a lightweight token-overlap heuristic. Every
+scorer returns ``(score, extra_cost)`` — a float in [0, 1] plus whatever it
+spent doing the check (only the judge call spends anything), so a single
+QUALITY_THRESHOLDS table can gate all of them and the verifier can still
+account for every dollar.
 """
 from __future__ import annotations
 
 import re
+from datetime import date, datetime
 
 from llm_clients import LLMRequestError, send_request
 from models import get_model
@@ -64,10 +69,125 @@ def _token_overlap(a: str, b: str) -> float:
     return len(ta & tb) / len(ta | tb)
 
 
+# --- extraction: typed-field detection -----------------------------------
+#
+# "Did it get all the key fields?" only means something if you can say what
+# a "field" is. Without a separate labeled ground-truth dataset (none was
+# built for this project), the top-tier model's output stands in for
+# "expected" - but the comparison happens at the level of actual typed
+# fields (an email, a date, a dollar amount, ...), not raw string/token
+# overlap, so two answers that both found "the date" but formatted it
+# differently ("2026-09-22" vs "September 22, 2026") still count as a match.
+
+_DATE_FORMATS = (
+    "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y",
+    "%B %d %Y", "%b %d %Y", "%d %B %Y", "%d %b %Y",
+)
+
+
+def _normalize_date(text: str) -> str:
+    cleaned = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", text, flags=re.IGNORECASE)
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(cleaned.strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return _normalize(text)
+
+
+def _normalize_phone(text: str) -> str:
+    return re.sub(r"\D", "", text)
+
+
+def _normalize_money(text: str) -> str:
+    digits = re.sub(r"[^\d.]", "", text)
+    try:
+        return f"{float(digits):.2f}"
+    except ValueError:
+        return digits
+
+
+def _normalize_percent(text: str) -> str:
+    digits = re.sub(r"[^\d.]", "", text)
+    try:
+        return f"{float(digits):g}"
+    except ValueError:
+        return digits
+
+
+def _normalize_time(text: str) -> str:
+    cleaned = text.strip().upper().replace(" ", "")
+    for fmt in ("%I:%M%p", "%H:%M"):
+        try:
+            return datetime.strptime(cleaned, fmt).strftime("%H:%M")
+        except ValueError:
+            continue
+    return _normalize(text)
+
+
+# (field_type, pattern, normalizer), in priority order. Order matters here:
+# extract_fields masks each match out of the text before the next (lower-
+# priority) pattern runs, so a phone number's digits can't also get picked
+# up piecemeal by the generic alnum_code catch-all, and so the SAME real
+# value found via different patterns (an ISO date vs. a month-name date)
+# still lands under one shared type label ("date") instead of two labels
+# that would never compare equal even after normalizing to the same value.
+_FIELD_PATTERNS: tuple[tuple[str, re.Pattern, "callable"], ...] = (
+    ("email", re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), str.lower),
+    ("url", re.compile(r"https?://[^\s,'\")]+"), lambda s: s.lower().rstrip("/")),
+    ("phone", re.compile(r"\(?\b\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), _normalize_phone),
+    ("amount", re.compile(r"\$\s?\d[\d,]*\.?\d*"), _normalize_money),
+    ("amount", re.compile(r"\b\d+\.\d{2}\b"), _normalize_money),  # plain "482.19", no $
+    ("percentage", re.compile(r"\b\d+(?:\.\d+)?\s?%"), _normalize_percent),
+    ("date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b"), _normalize_date),
+    ("date", re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b"), _normalize_date),
+    (
+        "date",
+        re.compile(
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z]*\.?\s+"
+            r"\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b",
+            re.IGNORECASE,
+        ),
+        _normalize_date,
+    ),
+    ("time", re.compile(r"\b\d{1,2}:\d{2}\s?(?:[APap][Mm])?\b"), _normalize_time),
+    ("alnum_code", re.compile(r"\b(?=[A-Za-z0-9-]*\d)[A-Za-z0-9][A-Za-z0-9-]{2,}\b"), str.upper),
+)
+
+
+def extract_fields(text: str) -> set[tuple[str, str]]:
+    """Return every typed field found in ``text`` as ``(type, normalized_value)``.
+
+    Applies patterns in priority order, masking each match out of the
+    working text before the next pattern runs — see the comment above
+    _FIELD_PATTERNS for why that matters.
+    """
+    fields: set[tuple[str, str]] = set()
+    remaining = text
+    for field_type, pattern, normalizer in _FIELD_PATTERNS:
+        for match in pattern.finditer(remaining):
+            fields.add((field_type, normalizer(match.group())))
+        remaining = pattern.sub(lambda m: " " * len(m.group()), remaining)
+    return fields
+
+
 def score_extraction(routed_output: str, reference_output: str) -> tuple[float, float]:
-    """Did the routed model's extracted value show up in the top-tier
-    model's answer too (or vice versa)? Falls back to token overlap for
-    partial credit rather than a hard 0."""
+    """Field coverage: of the typed fields found in the top-tier model's
+    (reference) answer, what fraction also appear in the routed model's
+    answer? Falls back to whole-string containment/token-overlap only when
+    neither answer contains a field this extractor recognizes (e.g. a
+    plain-word answer like a name), so free-text extractions still get
+    scored rather than defaulting to 0."""
+    routed_fields = extract_fields(routed_output)
+    reference_fields = extract_fields(reference_output)
+
+    if reference_fields:
+        return len(routed_fields & reference_fields) / len(reference_fields), 0.0
+    if routed_fields:
+        # Reference found nothing typed but routed did - can't confirm
+        # coverage of "expected" fields; fall through to text comparison.
+        pass
+
     a, b = _normalize(routed_output), _normalize(reference_output)
     score = 1.0 if (a == b or a in b or b in a) else _token_overlap(a, b)
     return score, 0.0
