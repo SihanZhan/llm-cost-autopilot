@@ -22,6 +22,7 @@ __pycache__/
 # are tracked deliberately)
 runs/
 eval/logs/
+autopilot.db
 
 # Editor / OS
 .vscode/

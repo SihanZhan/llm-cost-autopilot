@@ -5,9 +5,10 @@ The "async" part is real, not simulated: ``submit_verification`` runs
 ``verify_and_maybe_escalate`` on a background thread via a module-level
 ``ThreadPoolExecutor``, so the caller gets its primary (cheap-model) response
 immediately and verification happens after, without blocking. Every check —
-pass, fail, escalate, or skipped — gets one row in ``logs/verification_log.jsonl``,
-which is both the audit trail for the Phase 4 dashboard and the raw material
-for the Phase-3-mandated feedback loop (see ``classifier.feedback``).
+pass, fail, escalate, or skipped — gets one row in ``logs/verification_log.jsonl``
+(full detail, incl. prompt text, for the Phase-3 feedback loop) *and* one row
+in the ``requests`` table in ``db.py`` (prompt hashed, not full text — the
+Phase 4 dashboard's data source).
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import db
 from classifier.routing import model_for_tier
 from classifier.tiers import TIER_COMPLEX
 from eval.quality import QUALITY_THRESHOLDS, score_agreement, use_case_for_prompt
@@ -49,10 +51,32 @@ class VerificationResult:
     error: str | None = None
 
 
-def _log(result: VerificationResult) -> None:
+def _log(result: VerificationResult, routed_response: Response) -> None:
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LOG_FILE.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(asdict(result)) + "\n")
+
+    db.log_request(
+        {
+            "timestamp": result.timestamp,
+            "prompt_hash": db.prompt_hash(result.prompt),
+            "use_case": result.use_case,
+            "tier": result.tier,
+            "routed_model": result.routed_model_id,
+            "routed_cost": result.routed_cost,
+            "routed_latency": routed_response.latency,
+            "baseline_cost": db.baseline_cost_for(
+                routed_response.input_tokens, routed_response.output_tokens
+            ),
+            "verified": not result.skipped and result.error is None,
+            "quality_score": result.quality_score,
+            "passed": result.passed,
+            "escalated": result.escalated,
+            "final_model": result.final_model_id,
+            "cost_delta": result.cost_delta,
+            "verification_cost": result.verification_cost,
+        }
+    )
 
 
 def verify_and_maybe_escalate(
@@ -82,7 +106,7 @@ def verify_and_maybe_escalate(
             final_model_id=routed_response.model_id, final_output=routed_response.output_text,
             cost_delta=0.0, verification_cost=0.0, quality_gap=0.0,
         )
-        _log(result)
+        _log(result, routed_response)
         return result
 
     try:
@@ -98,7 +122,7 @@ def verify_and_maybe_escalate(
             final_model_id=routed_response.model_id, final_output=routed_response.output_text,
             cost_delta=0.0, verification_cost=0.0, quality_gap=0.0, error=str(exc),
         )
-        _log(result)
+        _log(result, routed_response)
         return result
 
     score, judge_cost = score_agreement(
@@ -127,7 +151,7 @@ def verify_and_maybe_escalate(
         verification_cost=verification_cost,
         quality_gap=0.0 if passed else round(threshold - score, 4),
     )
-    _log(result)
+    _log(result, routed_response)
     return result
 
 
