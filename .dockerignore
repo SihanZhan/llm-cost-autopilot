@@ -1,0 +1,17 @@
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+.git/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Never bake secrets into an image layer - docker-compose injects them via env_file instead.
+.env
+.env.*
+!.env.example
+
+autopilot.db
+eval/logs/

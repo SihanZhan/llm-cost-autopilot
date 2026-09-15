@@ -1,0 +1,42 @@
+# Phase 5: API service + async retrain worker, sharing SQLite via a bind mount.
+#
+# SQLite isn't a client-server database, so there's no separate "SQLite
+# service" here - both containers share autopilot.db (and routing.yaml,
+# classifier/model.joblib, classifier/data/, eval/logs/) by mounting the
+# whole repo, so whatever either container writes lands back on the host
+# too. That's a dev-oriented tradeoff, not a production pattern; see
+# docs/phase5_notes.md.
+#
+# Ollama (the free llama3 tier-1 model) runs on the host, not in this
+# compose file - OLLAMA_HOST below points at host.docker.internal, which
+# resolves to the host from inside a container on Docker Desktop
+# (Mac/Windows). On Linux you'd need `extra_hosts: ["host.docker.internal:host-gateway"]`
+# or to point OLLAMA_HOST at the host's real IP instead.
+#
+# Usage:
+#   docker compose up --build
+#   curl http://localhost:8000/health
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    volumes:
+      - .:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  retrain-worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - RETRAIN_INTERVAL_SECONDS=3600
+    volumes:
+      - .:/app
+    command: python -m classifier.retrain_worker
