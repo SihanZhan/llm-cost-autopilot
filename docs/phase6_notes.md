@@ -56,8 +56,14 @@ hand (not just trusting `stats.py`'s output) surfaced the gap. See
 |---|---:|---:|---:|
 | summarization (LLM-as-judge) | 48 | 0 | 0% |
 | classification (exact match) | 32 | 2 | 6% |
-| extraction (field-coverage proxy) | 38 | 9 | 24% |
+| extraction (field-coverage proxy)* | 38 | 9 | 24% |
 | **general (token-overlap fallback)** | **218** | **122** | **56%** |
+
+\* *extraction's checker was reworked afterward to detect real typed fields
+(dates, emails, amounts, phone numbers, ...) instead of comparing raw
+output strings — this row is from the older text-comparison version. See
+[docs/brief_conformance_fixes.md](brief_conformance_fixes.md); not
+re-measured at full 500-request scale since extraction is 7.6% of traffic.*
 
 This is the same pattern Phases 3-5 found on smaller samples, now confirmed
 at n=500 rather than n=10 or n=45: the three purpose-built checks

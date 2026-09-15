@@ -3,6 +3,15 @@
 Run: 2026-09-11, `python -m eval.demo` (the 10 `prompts/baseline_prompts.jsonl`
 prompts, routed live through classifier -> router -> verifier).
 
+> **Updated 2026-09-15:** step 4 below originally described an in-process
+> `ThreadPoolExecutor`. Verification now runs in a genuinely separate
+> `eval.verification_worker` process instead (a closer match to the brief's
+> "API service + a background worker for async verification"), and
+> extraction's check (step 5) now does real typed-field detection rather
+> than comparing raw strings. See [docs/brief_conformance_fixes.md](brief_conformance_fixes.md).
+> The results below are unaffected — same scoring outcomes either way for
+> this run, just produced by different code now.
+
 ## How it works
 
 `eval.pipeline.route_and_verify(prompt)` is the single entry point:
@@ -10,13 +19,13 @@ prompts, routed live through classifier -> router -> verifier).
 1. `classifier.predict.predict_tier` scores the prompt (Phase 2's model).
 2. `classifier.routing.model_for_tier` looks up the routed model from `routing.yaml`.
 3. The routed (cheap) model is called and its response returned immediately.
-4. `eval.verifier.submit_verification` hands verification to a background
-   thread — a real `ThreadPoolExecutor`, not a simulated delay — so the
-   caller never blocks on step 5.
-5. In the background: skip if the routed model already *is* the top tier;
+4. The prompt and response are enqueued as a job (`db.enqueue_verification_job`)
+   for `eval.verification_worker`, a separate process, so the caller never
+   blocks on step 5.
+5. The worker: skip if the routed model already *is* the top tier;
    otherwise re-run the prompt against the top-tier model (`routing.yaml`
    tier 3), score agreement with the use-case-appropriate check from
-   `eval.quality` (extraction: field-coverage proxy, classification: exact
+   `eval.quality` (extraction: typed-field coverage, classification: exact
    label match, summarization: LLM-as-judge via `gpt-4o-mini`, everything
    else: token-overlap), and escalate — swap in the top-tier answer as the
    final result — if the score misses the threshold. Every outcome (pass,

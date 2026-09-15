@@ -23,17 +23,20 @@ mechanism to catch and fix it when it wasn't.
 
 ```mermaid
 flowchart LR
-    user[Caller] --> api[POST /v1/completions]
+    user[Caller] --> api[api container<br/>POST /v1/completions]
     api --> clf[Classifier]
     clf -->|simple| cheap[Llama 3 - free, local]
     clf -->|moderate| mid[GPT-4o-mini]
     clf -->|complex| top[GPT-4o]
     cheap & mid & top --> resp[Response]
     resp --> api --> user
-    resp -.async.-> verify[Verifier vs. top tier]
+    api -.enqueue job.-> queue[(SQLite<br/>verification_jobs)]
+    queue -.poll.-> worker[verification-worker container<br/>separate process]
+    worker --> verify[Verify vs. top tier]
     verify -->|fail| esc[Escalate + log]
-    esc -.feedback.-> clf
-    verify --> db[(SQLite)]
+    esc -.feedback.-> retrain[retrain-worker container]
+    retrain -.updates.-> clf
+    verify --> db[(SQLite<br/>requests)]
     db --> dash[Dashboard / API stats]
 ```
 
@@ -45,8 +48,9 @@ flowchart LR
 - **Verifier** re-runs the same prompt against the top-tier model
   *after* the cheap response has already gone back to the caller, scores
   agreement with a check suited to the request type, and escalates
-  (substitutes the top-tier answer) on failure — all on a background
-  thread, so verification never adds latency to the response.
+  (substitutes the top-tier answer) on failure — all in a separate
+  `verification-worker` process from the API, so verification never adds
+  latency to the response and can't compete with the API for resources.
 - **Feedback loop** turns every escalation into a new training example and
   retrains the classifier on accumulated failures.
 - **Dashboard and API** (`GET /v1/stats`, Streamlit) read the same logged
@@ -105,8 +109,15 @@ checks a request the way it does tells the real story:
 |---|---:|---:|
 | LLM-as-judge (summarization) | 48 | 0% |
 | exact match (classification) | 32 | 6% |
-| field-coverage proxy (extraction) | 38 | 24% |
+| field-coverage proxy* (extraction) | 38 | 24% |
 | **raw token-overlap (everything else)** | **218** | **56%** |
+
+\* *Extraction's check was reworked after this run to detect real typed
+fields (dates, emails, amounts, ...) instead of comparing raw output
+strings — see [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
+The 24% figure above is from the old text-comparison version; it wasn't
+re-measured under the new one (extraction is 7.6% of traffic, not enough
+to justify another full paid load test on its own).*
 
 Three purpose-built checks work well. The fallback used for anything that
 doesn't match a keyword trigger — a blunt "do the two answers share enough
@@ -151,6 +162,14 @@ build environment), and the fix for the `general`-bucket check — a real
 LLM-as-judge for it, matching what `summarization` already has, or a
 human-review gate before an escalation is trusted as a training label — is
 identified but not built. That's the honest next step, not a hidden gap.
+
+Two earlier gaps between the brief and the build were found and closed
+after this report was first written — verification now runs as a
+genuinely separate worker process (not an in-process thread pool), and
+extraction verification now checks real typed fields instead of comparing
+raw output strings. Both were caught the same way everything else in this
+project was: by testing the actual behavior, not trusting that the code
+looked right. See [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
 
 ## Repo
 

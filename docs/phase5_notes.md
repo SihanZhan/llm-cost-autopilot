@@ -3,6 +3,15 @@
 Run: 2026-09-15, `uvicorn api.main:app` started locally and every endpoint
 exercised live (real provider calls, not mocked).
 
+> **Updated 2026-09-15, later the same day:** at the time this doc was
+> written, verification still ran in-process (a `ThreadPoolExecutor`
+> inside the API), and the second docker-compose service below was
+> `retrain-worker`. A closer read of the brief ("API service + a
+> background worker for async verification") led to adding a real third
+> service, `verification-worker`, decoupling verification into its own
+> process. See [docs/brief_conformance_fixes.md](brief_conformance_fixes.md).
+> The endpoint-by-endpoint results below are otherwise unaffected.
+
 ## Endpoints
 
 | Endpoint | Verified |
@@ -29,9 +38,10 @@ only the headline sums moved).
 
 ## The retrain worker, and the story it's telling
 
-`classifier/retrain_worker.py` is the second docker-compose service: harvest
-escalations, retrain if anything new came in, sleep, repeat.  Ran it once by
-hand instead of just reading the code:
+`classifier/retrain_worker.py` is a docker-compose service (an addition
+beyond the brief's minimum, alongside the now-separate `verification-worker`
+that IS what the brief specifies): harvest escalations, retrain if anything
+new came in, sleep, repeat. Ran it once by hand instead of just reading the code:
 
 | checkpoint | training rows | held-out accuracy |
 |---|---:|---:|
@@ -67,10 +77,11 @@ the worker that faithfully executes what it's told to.
 
 ## Docker
 
-`Dockerfile` + `docker-compose.yml` define two services (`api`,
-`retrain-worker`) sharing state via a bind mount of the whole repo — SQLite
-isn't a client-server database, so there's no third "SQLite service"; both
-containers just see the same `autopilot.db` file. `docker compose config`
+`Dockerfile` + `docker-compose.yml` define three services (`api`,
+`verification-worker`, `retrain-worker`) sharing state via a bind mount of
+the whole repo — SQLite isn't a client-server database, so there's no
+separate "SQLite service"; all three containers just see the same
+`autopilot.db` file. `docker compose config`
 validated the full resolved config (build context, volumes, env injection)
 with no errors. **Not run end-to-end**: this environment has the `docker`
 and `docker compose` CLIs but no running Docker Desktop daemon, so

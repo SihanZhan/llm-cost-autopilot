@@ -34,12 +34,14 @@ flowchart LR
     resp --> api
     api --> user
 
-    resp -.async, non-blocking.-> verify[Quality verifier<br/>eval.verifier]
+    api -.enqueue job, non-blocking.-> queue[(SQLite<br/>verification_jobs)]
+    queue -.poll.-> vworker[verification-worker<br/>separate process]
+    vworker --> verify[Score vs. top tier]
     verify -->|divergence| esc[Auto-escalate:<br/>swap in top-tier answer]
     verify --> logdb[(SQLite<br/>autopilot.db)]
     esc --> logdb
-    esc -.feedback.-> worker[Retrain worker<br/>harvest + retrain]
-    worker -.updates.-> clf
+    esc -.feedback.-> rworker[retrain-worker<br/>harvest + retrain]
+    rworker -.updates.-> clf
     logdb --> dash[Streamlit dashboard]
     logdb --> stats[GET /v1/stats]
 ```
@@ -50,12 +52,14 @@ flowchart LR
 2. **Router** maps the tier to a model via a configurable YAML (also live-editable
    via `PUT /v1/routing-config`) — swap models without touching code or redeploying.
 3. **API** returns the routed response immediately; it doesn't wait on verification.
-4. **Verifier** runs asynchronously on a background thread: it re-runs the
-   prompt against the top-tier model, scores agreement with a per-use-case
-   check, and on significant divergence auto-escalates (swaps in the
-   top-tier answer) and logs the outcome to SQLite.
+4. **Verifier** runs in a separate `verification-worker` process, not the API
+   process: it polls a SQLite job queue, re-runs the prompt against the
+   top-tier model, scores agreement with a per-use-case check, and on
+   significant divergence auto-escalates (swaps in the top-tier answer) and
+   logs the outcome to SQLite.
 5. **Feedback loop** turns every escalation into a new labeled training
-   example; a worker process harvests them and retrains the classifier.
+   example; a separate `retrain-worker` process harvests them and retrains
+   the classifier.
 6. **Dashboard and `/v1/stats`** read the same SQLite log and the same
    `stats.py` aggregation, so they can't disagree with each other.
 
@@ -86,18 +90,19 @@ flowchart LR
 | [classifier/train.py](classifier/train.py) | Trains logistic regression + random forest, reports accuracy/confusion matrix, saves the better one to `model.joblib` |
 | [classifier/predict.py](classifier/predict.py) | Loads the trained model and scores a new prompt's tier |
 | [routing.yaml](routing.yaml) + [classifier/routing.py](classifier/routing.py) | Tier → model mapping, editable without touching code |
-| [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction field coverage, classification label match, summarization LLM-as-judge, general token-overlap fallback |
-| [eval/verifier.py](eval/verifier.py) | Re-runs the routed prompt against the top-tier model on a background thread, scores agreement, auto-escalates on failure, logs every outcome |
-| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, kick off async verification; the single entry point later phases call |
+| [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction typed-field coverage (emails, dates, amounts, ...), classification label match, summarization LLM-as-judge, general token-overlap fallback |
+| [eval/verifier.py](eval/verifier.py) | Scores the routed prompt's answer against the top-tier model's, auto-escalates on failure, logs every outcome — the scoring/escalation core, invoked by `eval.verification_worker` |
+| [db.py](db.py) | SQLite: the `requests` audit log (hashed prompt, tier, routed model, cost, latency, quality score, escalation) plus the `verification_jobs` queue that decouples verification from the API process |
+| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, enqueue a verification job; the single entry point later phases call |
+| [eval/verification_worker.py](eval/verification_worker.py) | The background worker for async verification, as a genuinely separate process from the API — polls `verification_jobs`, runs `eval.verifier` for each, logs the result. `python -m eval.verification_worker` for the persistent deployed version; `drain()` for scripts that want an immediate synchronous summary |
 | [eval/demo.py](eval/demo.py) | Runs the pipeline over the 10 baseline prompts and reports pass/fail/escalation per prompt |
 | [classifier/feedback.py](classifier/feedback.py) | Harvests escalations from the verification log into `failure_feedback.jsonl`, which `classifier.train` folds into the next retrain |
-| [db.py](db.py) | SQLite log of every request (hashed prompt, tier, routed model, cost, latency, quality score, escalation) — the dashboard's data source |
 | [eval/seed_dashboard.py](eval/seed_dashboard.py) | Routes a tier-balanced sample of the labeled dataset through the live pipeline to populate the dashboard with real data |
 | [dashboard/app.py](dashboard/app.py) | Streamlit dashboard: headline cost-reduction metric, daily cost vs. baseline, routing distribution, quality-score distribution, escalation rate over time |
 | [stats.py](stats.py) | `compute_stats()` — the cost-savings summary, shared by `GET /v1/stats` and the dashboard so they can't disagree |
 | [api/main.py](api/main.py) | FastAPI service: `POST /v1/completions`, `GET /v1/models`, `GET /v1/stats`, `GET`/`PUT /v1/routing-config`, `GET /health` |
-| [classifier/retrain_worker.py](classifier/retrain_worker.py) | Loops: harvest routing-failure feedback, retrain if anything new came in, sleep. The second docker-compose service. |
-| [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
+| [classifier/retrain_worker.py](classifier/retrain_worker.py) | Loops: harvest routing-failure feedback, retrain if anything new came in, sleep. An addition beyond the brief's minimum — automates what was otherwise a manual step. |
+| [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `verification-worker` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
 | [eval/load_test.py](eval/load_test.py) | Routes 500+ prompts concurrently through the full live pipeline; per-prompt error handling so one provider hiccup doesn't sink the run |
 | [eval/report_charts.py](eval/report_charts.py) | Renders the dashboard's key numbers to static PNGs (matplotlib) from the same `stats.compute_stats()` data — no browser needed |
 | [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, and the escalation-cost/feedback-loop finding traced to its root cause |
@@ -146,8 +151,9 @@ streamlit run dashboard/app.py  # view the cost/quality dashboard
 ## API (Phase 5)
 
 ```bash
-uvicorn api.main:app --reload      # local dev, http://127.0.0.1:8000/docs
-docker compose up --build          # api + retrain-worker containers
+uvicorn api.main:app --reload      # local dev API only, http://127.0.0.1:8000/docs
+python -m eval.verification_worker # local dev - run alongside the API for verification to actually process
+docker compose up --build          # api + verification-worker + retrain-worker containers
 ```
 
 ```bash
@@ -201,14 +207,35 @@ quality check Phase 3 flagged.
 pipeline over HTTP; every endpoint was exercised live, including
 `PUT /v1/routing-config` actually re-routing traffic without a restart.
 `GET /v1/stats` and the dashboard now share one `stats.py` implementation.
-Docker Compose defines the two-service deployment (`api` + a
-`retrain-worker` that automates Phase 3's feedback loop, previously a manual
-step) — config-validated but not run end-to-end, since this environment has
-no live Docker daemon; see [docs/phase5_notes.md](docs/phase5_notes.md).
+Docker Compose defines a three-service deployment: `api`,
+`verification-worker` (the brief's required background worker for async
+verification, as a genuinely separate process — see
+[docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md)), and
+`retrain-worker` (an addition beyond the brief, automating Phase 3's
+feedback loop) — config-validated but not container-tested end-to-end,
+since this environment has no live Docker daemon; the underlying
+multi-process architecture *was* verified live outside Docker (separate
+Python processes enqueuing/claiming real jobs against the same SQLite
+file). See [docs/phase5_notes.md](docs/phase5_notes.md).
 Running the retrain worker once by hand extended the trend from Phases 3-4:
 accuracy is now 85.4% after three rounds of naive feedback (97.8% → 95.7% →
 85.4%) — still above target, but a real, repeating cost of not fixing the
 `general`-bucket quality check.
+
+**Post-launch conformance fixes (2026-09-15).** A detailed line-by-line
+restatement of the brief surfaced two places where the build was a close
+functional substitute rather than an exact match: verification ran async
+inside the API process instead of as a separate worker, and extraction
+verification compared raw output strings instead of checking real
+extracted fields. Both closed for real — see
+[docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md) for
+what changed, the bugs caught while building the fix (a multi-statement
+SQL schema call, and two field-matching bugs in the new extraction
+scorer — all caught by testing before shipping, not after), and what
+wasn't re-measured as a result (extraction's 24% escalation-rate figure
+predates its scorer rewrite; re-running the full 500-request load test
+for a change scoped to 7.6% of traffic wasn't judged worth the added
+API spend).
 
 **Phase 6 (portfolio polish) — done.** A 500-request live load test
 (8 concurrent workers, 0 failures, ~7.5 min) confirmed the routing-only
