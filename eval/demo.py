@@ -4,9 +4,11 @@ fixed prompt set and report what happened.
 Reuses prompts/baseline_prompts.jsonl (10 prompts spanning all three tiers
 and the extraction/classification/summarization use cases) so this doesn't
 need its own dataset. Each prompt is routed by the trained classifier, the
-cheap-model response comes back immediately, and verification runs in the
-background against the top-tier model — this script just waits for every
-future before printing the summary so the report is complete.
+cheap-model response comes back immediately, and verification is queued for
+eval.verification_worker — a genuinely separate process from this script,
+matching the brief's architecture. This script drains that queue itself
+afterward (same worker code, run in-process for convenience) so it can
+still print an immediate, complete summary.
 
 Usage:
     python -m eval.demo
@@ -17,6 +19,7 @@ import json
 from pathlib import Path
 
 from eval.pipeline import route_and_verify
+from eval.verification_worker import drain
 
 ROOT = Path(__file__).parent.parent
 PROMPTS_FILE = ROOT / "prompts" / "baseline_prompts.jsonl"
@@ -38,12 +41,13 @@ def main() -> int:
 
     pending = []
     for row in prompts:
-        tier, response, future = route_and_verify(row["prompt"])
-        pending.append((row["id"], tier, response, future))
-        print(f"  {row['id']:<20} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}  (verifying...)")
+        tier, response, job_id = route_and_verify(row["prompt"])
+        pending.append((row["id"], tier, response, row["prompt"]))
+        print(f"  {row['id']:<20} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}  (queued for verification-worker, job {job_id})")
 
-    print("\nwaiting on verification...\n")
-    results = [(pid, tier, resp, future.result()) for pid, tier, resp, future in pending]
+    print("\ndraining the verification queue (eval.verification_worker)...\n")
+    verified_by_prompt = {v.prompt: v for v in drain()}
+    results = [(pid, tier, resp, verified_by_prompt[prompt]) for pid, tier, resp, prompt in pending]
 
     header = f"{'prompt_id':<20} {'use_case':<15} {'passed':<7} {'escalated':<10} {'score':<7} {'cost_delta':>11}"
     print(header)

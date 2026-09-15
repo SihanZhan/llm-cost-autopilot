@@ -1,10 +1,11 @@
-"""Async quality verification: re-run a routed request against the top-tier
-model, score agreement, and auto-escalate on failure.
+"""Quality verification: re-run a routed request against the top-tier model,
+score agreement, and auto-escalate on failure.
 
-The "async" part is real, not simulated: ``submit_verification`` runs
-``verify_and_maybe_escalate`` on a background thread via a module-level
-``ThreadPoolExecutor``, so the caller gets its primary (cheap-model) response
-immediately and verification happens after, without blocking. Every check —
+``verify_and_maybe_escalate`` is the scoring/escalation/logging core; it's
+invoked by eval.verification_worker, a genuinely separate process from the
+API (see eval.pipeline.route_and_verify, which enqueues a job in db.py
+instead of calling this in-process) — matching the brief's "API service +
+a background worker for async verification" architecture. Every check —
 pass, fail, escalate, or skipped — gets one row in ``logs/verification_log.jsonl``
 (full detail, incl. prompt text, for the Phase-3 feedback loop) *and* one row
 in the ``requests`` table in ``db.py`` (prompt hashed, not full text — the
@@ -13,7 +14,6 @@ Phase 4 dashboard's data source).
 from __future__ import annotations
 
 import json
-from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,7 +25,6 @@ from eval.quality import QUALITY_THRESHOLDS, score_agreement, use_case_for_promp
 from llm_clients import LLMRequestError, Response, send_request
 
 LOG_FILE = Path(__file__).parent / "logs" / "verification_log.jsonl"
-_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="verifier")
 
 
 @dataclass
@@ -167,8 +166,3 @@ def verify_and_maybe_escalate(
     )
     _log(result, routed_response, verifier_response)
     return result
-
-
-def submit_verification(prompt: str, tier: int, routed_response: Response) -> "Future[VerificationResult]":
-    """Fire off verification on a background thread; returns immediately."""
-    return _EXECUTOR.submit(verify_and_maybe_escalate, prompt, tier, routed_response)

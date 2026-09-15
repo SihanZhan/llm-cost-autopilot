@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from eval.pipeline import route_and_verify
+from eval.verification_worker import drain
 from llm_clients import LLMRequestError
 
 ROOT = Path(__file__).parent.parent
@@ -56,7 +57,7 @@ def build_run_list(n: int) -> list[str]:
 def _run_one(prompt: str) -> tuple[bool, str | None, float]:
     """Route one prompt; return (ok, error, routed_cost)."""
     try:
-        _tier, response, _future = route_and_verify(prompt)
+        _tier, response, _job_id = route_and_verify(prompt)
         return True, None, response.cost
     except LLMRequestError as exc:
         return False, str(exc), 0.0
@@ -68,6 +69,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 6 load test.")
     parser.add_argument("--n", type=int, default=500, help="total requests")
     parser.add_argument("--workers", type=int, default=8, help="concurrent routed calls")
+    parser.add_argument("--verify-workers", type=int, default=4, help="concurrent verification-worker draining")
     args = parser.parse_args()
 
     run_list = build_run_list(args.n)
@@ -97,14 +99,12 @@ def main() -> int:
                 print(f"  {i}/{len(run_list)} routed  ({n_ok} ok, {n_fail} failed)  {elapsed:.0f}s elapsed")
 
     routed_elapsed = time.perf_counter() - t0
-    print(f"\nall routed calls done in {routed_elapsed:.0f}s. waiting for verification to drain...")
+    print(f"\nall routed calls done in {routed_elapsed:.0f}s. draining the verification queue "
+          f"(eval.verification_worker, {args.verify_workers} concurrent)...")
 
-    # verification runs on eval.verifier's own background pool; give it a
-    # moment to finish writing the last rows before anyone queries the DB.
-    from eval.verifier import _EXECUTOR
-
-    _EXECUTOR.shutdown(wait=True)
+    verify_results = drain(workers=args.verify_workers)
     total_elapsed = time.perf_counter() - t0
+    print(f"verification drained: {len(verify_results)} job(s) processed")
 
     if errors:
         print("\nerrors:")

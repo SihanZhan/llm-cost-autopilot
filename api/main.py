@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 
 import stats
 from classifier.routing import load_routing_config, update_routing_config
-from classifier.tiers import TIER_NAMES, tier_name
+from classifier.tiers import tier_name
 from eval.pipeline import route_and_verify
 from llm_clients import LLMRequestError
 from models import MODEL_REGISTRY
@@ -55,10 +55,11 @@ class CompletionResponse(BaseModel):
     output_tokens: int
     cost: float
     latency: float
+    verification_job_id: int
     note: str = (
-        "Quality verification runs asynchronously in the background and is "
-        "not reflected in this response — check /v1/stats or the dashboard "
-        "for verification/escalation outcomes."
+        "Quality verification is queued for the verification-worker process "
+        "and is not reflected in this response — check /v1/stats or the "
+        "dashboard for verification/escalation outcomes once it's processed."
     )
 
 
@@ -113,7 +114,9 @@ def create_completion(request: CompletionRequest) -> CompletionResponse:
     """Classify the prompt, route it to a model, call it, and kick off
     async verification. Returns as soon as the routed model responds."""
     try:
-        tier, response, _future = route_and_verify(request.prompt, max_tokens=request.max_tokens)
+        tier, response, verification_job_id = route_and_verify(
+            request.prompt, max_tokens=request.max_tokens
+        )
     except LLMRequestError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except (ValueError, KeyError) as exc:
@@ -140,6 +143,7 @@ def create_completion(request: CompletionRequest) -> CompletionResponse:
         output_tokens=response.output_tokens,
         cost=response.cost,
         latency=response.latency,
+        verification_job_id=verification_job_id,
     )
 
 

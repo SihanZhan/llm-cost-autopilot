@@ -19,6 +19,7 @@ import random
 from pathlib import Path
 
 from eval.pipeline import route_and_verify
+from eval.verification_worker import drain
 
 ROOT = Path(__file__).parent.parent
 LABELED_FILE = ROOT / "classifier" / "data" / "labeled_prompts.jsonl"
@@ -56,19 +57,14 @@ def main() -> int:
     prompts = sample_by_tier(load_labeled(), args.per_tier)
     print(f"routing {len(prompts)} prompts ({args.per_tier} per tier) through the live pipeline\n")
 
-    pending = []
     for i, row in enumerate(prompts, start=1):
-        tier, response, future = route_and_verify(row["prompt"])
-        pending.append(future)
-        print(f"  [{i:>3}/{len(prompts)}] {row['id']:<14} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}")
+        tier, response, job_id = route_and_verify(row["prompt"])
+        print(f"  [{i:>3}/{len(prompts)}] {row['id']:<14} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}  (queued, job {job_id})")
 
-    print("\nwaiting on verification...")
-    n_escalated = 0
-    total_cost_delta = 0.0
-    for future in pending:
-        result = future.result()
-        n_escalated += int(result.escalated)
-        total_cost_delta += result.cost_delta
+    print("\ndraining the verification queue (eval.verification_worker)...")
+    results = drain()
+    n_escalated = sum(1 for r in results if r.escalated)
+    total_cost_delta = sum(r.cost_delta for r in results)
 
     print(f"\ndone. {n_escalated}/{len(prompts)} escalated, ${total_cost_delta:.5f} escalation cost delta")
     print("data written to autopilot.db and eval/logs/verification_log.jsonl")

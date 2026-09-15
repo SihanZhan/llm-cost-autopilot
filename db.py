@@ -41,6 +41,22 @@ CREATE TABLE IF NOT EXISTS requests (
     cost_delta REAL NOT NULL,
     verification_cost REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS verification_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    tier INTEGER NOT NULL,
+    routed_model_id TEXT NOT NULL,
+    routed_output_text TEXT NOT NULL,
+    routed_input_tokens INTEGER NOT NULL,
+    routed_output_tokens INTEGER NOT NULL,
+    routed_latency REAL NOT NULL,
+    routed_cost REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    claimed_at TEXT,
+    error TEXT
+);
 """
 
 
@@ -51,7 +67,7 @@ def prompt_hash(prompt: str) -> str:
 
 def init_db(path: Path = DB_FILE) -> None:
     with sqlite3.connect(path) as conn:
-        conn.execute(_SCHEMA)
+        conn.executescript(_SCHEMA)
 
 
 def baseline_cost_for(input_tokens: int, output_tokens: int) -> float:
@@ -94,3 +110,86 @@ def fetch_requests(path: Path = DB_FILE) -> list[dict]:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT * FROM requests ORDER BY timestamp").fetchall()
     return [dict(r) for r in rows]
+
+
+# --- verification job queue --------------------------------------------
+#
+# What decouples verification into a real separate worker process (matching
+# the brief's "API service + a background worker for async verification"
+# architecture) instead of an in-process thread pool: the API enqueues a
+# row here and returns immediately; eval.verification_worker is a standalone
+# process that polls this table and does the actual work.
+
+
+def enqueue_verification_job(
+    prompt: str, tier: int, routed_response, path: Path = DB_FILE
+) -> int:
+    """Queue a verification job for ``routed_response`` and return its id."""
+    from datetime import datetime, timezone
+
+    init_db(path)
+    with sqlite3.connect(path) as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO verification_jobs (
+                created_at, prompt, tier, routed_model_id, routed_output_text,
+                routed_input_tokens, routed_output_tokens, routed_latency, routed_cost
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now(timezone.utc).isoformat(), prompt, tier,
+                routed_response.model_id, routed_response.output_text,
+                routed_response.input_tokens, routed_response.output_tokens,
+                routed_response.latency, routed_response.cost,
+            ),
+        )
+        return cur.lastrowid
+
+
+def claim_next_verification_job(path: Path = DB_FILE) -> dict | None:
+    """Atomically claim one pending job (mark it 'claimed' and return it), or
+    None if the queue is empty. Uses a single UPDATE...RETURNING so two
+    workers polling concurrently can't both claim the same row."""
+    from datetime import datetime, timezone
+
+    init_db(path)
+    with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            """
+            UPDATE verification_jobs
+            SET status = 'claimed', claimed_at = ?
+            WHERE id = (
+                SELECT id FROM verification_jobs
+                WHERE status = 'pending'
+                ORDER BY id LIMIT 1
+            )
+            RETURNING *
+            """,
+            (datetime.now(timezone.utc).isoformat(),),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def mark_job_done(job_id: int, path: Path = DB_FILE) -> None:
+    with sqlite3.connect(path) as conn:
+        conn.execute("UPDATE verification_jobs SET status = 'done' WHERE id = ?", (job_id,))
+
+
+def mark_job_error(job_id: int, error: str, path: Path = DB_FILE) -> None:
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "UPDATE verification_jobs SET status = 'error', error = ? WHERE id = ?",
+            (error, job_id),
+        )
+
+
+def pending_job_count(path: Path = DB_FILE) -> int:
+    if not path.exists():
+        return 0
+    with sqlite3.connect(path) as conn:
+        (count,) = conn.execute(
+            "SELECT COUNT(*) FROM verification_jobs WHERE status IN ('pending', 'claimed')"
+        ).fetchone()
+    return count

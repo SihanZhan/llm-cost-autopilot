@@ -1,10 +1,17 @@
-# Phase 5: API service + async retrain worker, sharing SQLite via a bind mount.
+# API service + a background worker for async verification + SQLite - the
+# exact architecture the project brief specifies. The API enqueues a job in
+# autopilot.db's verification_jobs table (db.enqueue_verification_job) and
+# returns immediately; verification-worker is a genuinely separate process
+# that polls that table and does the actual re-run-against-top-tier-model +
+# score + escalate + log work (eval.verification_worker). retrain-worker is
+# an addition beyond the brief's minimum - it automates the classifier
+# feedback loop that Phase 3 otherwise left as a manual two-command step.
 #
 # SQLite isn't a client-server database, so there's no separate "SQLite
-# service" here - both containers share autopilot.db (and routing.yaml,
+# service" here - all three containers share autopilot.db (and routing.yaml,
 # classifier/model.joblib, classifier/data/, eval/logs/) by mounting the
-# whole repo, so whatever either container writes lands back on the host
-# too. That's a dev-oriented tradeoff, not a production pattern; see
+# whole repo, so whatever any container writes lands back on the host too.
+# That's a dev-oriented tradeoff, not a production pattern; see
 # docs/phase5_notes.md.
 #
 # Ollama (the free llama3 tier-1 model) runs on the host, not in this
@@ -29,6 +36,16 @@ services:
     volumes:
       - .:/app
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  verification-worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    volumes:
+      - .:/app
+    command: python -m eval.verification_worker
 
   retrain-worker:
     build: .
