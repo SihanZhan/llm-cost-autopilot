@@ -2,7 +2,7 @@
 {"id": "t1-002", "tier": 1, "prompt": "Convert this list into a JSON array of strings, nothing else: cereal, milk, bananas, honey"}
 {"id": "t1-003", "tier": 1, "prompt": "What is the capital of France? Answer with just the city name."}
 {"id": "t1-004", "tier": 1, "prompt": "Reformat this date as YYYY-MM-DD and output only the result: July 4, 2025"}
-{"id": "t1-005", "tier": 1, "prompt": "Convert 5 miles to kilometers. Output only the number, rounded to one decimal."}
+{"id": "t1-005", "tier": 1, "prompt": "My hotel is 5 miles from the airport \u2014 how many kilometers is that? Output only the number, rounded to one decimal."}
 {"id": "t1-006", "tier": 1, "prompt": "Translate the word \"hello\" into Spanish. Output only the translated word."}
 {"id": "t1-007", "tier": 1, "prompt": "Capitalize the first letter of each word in this title and return only the result: \"the great gatsby\""}
 {"id": "t1-008", "tier": 1, "prompt": "Sort these numbers in ascending order and return them as a comma-separated list: 42, 7, 19, 3, 88"}
@@ -35,7 +35,7 @@
 {"id": "t1-035", "tier": 1, "prompt": "What is the plural of \"cactus\"? Answer with just the word."}
 {"id": "t1-036", "tier": 1, "prompt": "Extract the invoice total from this text and return only the amount: \"Total due: $482.19, payable within 30 days.\""}
 {"id": "t1-037", "tier": 1, "prompt": "Reformat this list as a numbered list, nothing else: milk, eggs, bread"}
-{"id": "t1-038", "tier": 1, "prompt": "Convert 3 kilograms to pounds. Output only the number, rounded to one decimal."}
+{"id": "t1-038", "tier": 1, "prompt": "My suitcase is 3 kilograms over the airline's weight limit \u2014 how many pounds is that? Output only the number, rounded to one decimal."}
 {"id": "t1-039", "tier": 1, "prompt": "What is the freezing point of water in Fahrenheit? Answer with just the number."}
 {"id": "t1-040", "tier": 1, "prompt": "Extract the flight number from this text and return only the flight number: \"Your flight, DL 2049, departs at 6:15 AM from gate B12.\""}
 {"id": "t1-041", "tier": 1, "prompt": "Translate \"good morning\" into French. Output only the translated phrase."}
@@ -62,7 +62,7 @@
 {"id": "t1-062", "tier": 1, "prompt": "Reformat this social handle to remove the \"@\" symbol and return only the result: \"@traveldiaries\""}
 {"id": "t1-063", "tier": 1, "prompt": "Extract the confirmation number from this booking text and return only the number: \"Your reservation is confirmed under number RES-88213.\""}
 {"id": "t1-064", "tier": 1, "prompt": "Convert 7 feet to meters. Output only the number, rounded to two decimals."}
-{"id": "t1-065", "tier": 1, "prompt": "What is the opposite of \"ascend\"? Answer with just the word."}
+{"id": "t1-065", "tier": 1, "prompt": "Give me one word that means the opposite of \"ascend\"."}
 {"id": "t1-066", "tier": 1, "prompt": "Reformat this list into title case and return only the result, one per line: \"the hobbit\", \"1984\", \"dune\""}
 {"id": "t1-067", "tier": 1, "prompt": "Extract the promo percentage from this text and return only the number: \"Members get an extra 15% off this weekend only.\""}
 {"id": "t1-068", "tier": 1, "prompt": "Convert 30 minutes to seconds. Output only the number."}
@@ -70,7 +70,7 @@
 {"id": "t1-070", "tier": 1, "prompt": "Reformat this string by removing all punctuation and return only the result: \"Wait... what?! Really?\""}
 {"id": "t1-071", "tier": 1, "prompt": "Extract the appointment date from this text and return only the date: \"See you at the dentist on September 22nd at 10am.\""}
 {"id": "t1-072", "tier": 1, "prompt": "Convert this fraction to a decimal and output only the number: 3/8"}
-{"id": "t1-073", "tier": 1, "prompt": "What is the plural of \"child\"? Answer with just the word."}
+{"id": "t1-073", "tier": 1, "prompt": "What's the plural form of \"child\"? Just the word, nothing else."}
 {"id": "t1-074", "tier": 1, "prompt": "Reformat this list of tags by removing duplicates and return as a comma-separated list: red, blue, red, green, blue"}
 {"id": "t2-001", "tier": 2, "prompt": "Summarize this paragraph in one sentence: \"The city council approved a new bike lane network last week. Supporters say it will cut commute times and improve safety, while some business owners worry about lost parking. Construction is expected to begin in the spring.\""}
 {"id": "t2-002", "tier": 2, "prompt": "Classify the sentiment of this review as positive, negative, or neutral, and reply with only that word: \"The soup was lukewarm but the service made up for it.\""}
