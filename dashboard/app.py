@@ -24,6 +24,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import db  # noqa: E402  (needs the sys.path insert above)
+from stats import compute_stats  # noqa: E402
 
 st.set_page_config(page_title="LLM Cost Autopilot", page_icon="💸", layout="wide")
 
@@ -53,35 +54,28 @@ def main() -> None:
         )
         return
 
-    # --- Headline metric -------------------------------------------------
-    total_routed = df["routed_cost"].sum()
-    total_baseline = df["baseline_cost"].sum()
-    escalation_delta = df.loc[df["escalated"], "cost_delta"].sum()
-    verification_cost = df["verification_cost"].sum()
-    net_actual = total_routed + escalation_delta
-
-    pct_saved_routing = (total_baseline - total_routed) / total_baseline * 100 if total_baseline else 0.0
-    pct_saved_net = (total_baseline - net_actual) / total_baseline * 100 if total_baseline else 0.0
+    # --- Headline metric (same computation the API's /v1/stats returns) ---
+    s = compute_stats(df.to_dict("records"))
 
     st.markdown("### Cost saved vs. sending everything to GPT-4o")
     m1, m2, m3 = st.columns(3)
-    m1.metric("Routing-only reduction", f"{pct_saved_routing:.1f}%", help="Routed cost vs. baseline, before counting what escalations cost.")
-    m2.metric("Net reduction (incl. escalations)", f"{pct_saved_net:.1f}%", help="Routed cost + escalation cost delta vs. baseline — what this system actually spent.")
-    m3.metric("All-GPT-4o baseline", f"${total_baseline:.4f}")
+    m1.metric("Routing-only reduction", f"{s['pct_saved_routing_only']:.1f}%", help="Routed cost vs. baseline, before counting what escalations cost.")
+    m2.metric("Net reduction (incl. escalations)", f"{s['pct_saved_net']:.1f}%", help="Routed cost + escalation cost delta vs. baseline — what this system actually spent.")
+    m3.metric("All-GPT-4o baseline", f"${s['total_baseline_cost']:.4f}")
 
-    if pct_saved_net < pct_saved_routing * 0.5:
+    if s["pct_saved_net"] < s["pct_saved_routing_only"] * 0.5:
         st.warning(
             f"Escalations are eating most of the routing savings on this data: "
-            f"${escalation_delta:.4f} in escalation cost turns a {pct_saved_routing:.1f}% "
-            f"routing-only reduction into only {pct_saved_net:.1f}% net. "
+            f"${s['escalation_cost_delta']:.4f} in escalation cost turns a {s['pct_saved_routing_only']:.1f}% "
+            f"routing-only reduction into only {s['pct_saved_net']:.1f}% net. "
             f"See docs/phase4_notes.md — this traces back to the same overly strict "
             f"'general' use-case check flagged in docs/phase3_notes.md."
         )
 
     st.caption(
-        f"Actual routed cost: ${total_routed:.4f}  •  verification overhead: ${verification_cost:.4f}  •  "
-        f"escalation cost delta: ${escalation_delta:.4f}  •  "
-        f"{len(df)} requests across {df['date'].nunique()} day(s) of logged data"
+        f"Actual routed cost: ${s['total_routed_cost']:.4f}  •  verification overhead: ${s['verification_cost']:.4f}  •  "
+        f"escalation cost delta: ${s['escalation_cost_delta']:.4f}  •  "
+        f"{s['n_requests']} requests across {df['date'].nunique()} day(s) of logged data"
     )
 
     st.divider()
