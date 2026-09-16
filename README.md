@@ -5,12 +5,15 @@ scores each request's complexity, routes it to the **cheapest model that can
 handle it at acceptable quality**, and continuously verifies that those routing
 decisions were correct.
 
-> **500 live requests, measured end to end: 25.7% cheaper than an all-GPT-4o
-> baseline on routing alone — but 2.6% *more expensive* once every dollar
-> spent verifying those decisions is counted too.** The routing idea works;
-> checking every answer against the top-tier model, pass or fail, costs more
-> than it saves. Full breakdown, including exactly where that gap comes
-> from and what it would take to fix it, in [CASE_STUDY.md](CASE_STUDY.md).
+> **500 live requests, measured end to end: 20.3% cheaper than an all-GPT-4o
+> baseline — after finding, on an earlier identical run, that the same
+> system actually cost 2.6% *more* than the baseline once verification was
+> counted honestly.** Checking every answer against the top-tier model cost
+> more than it saved; fixing that (sample instead of checking everything,
+> replace a bad quality check with a real one) turned a real loss into a
+> real 20.3% saving, confirmed on another live 500-request run. Full
+> before/after breakdown in [CASE_STUDY.md](CASE_STUDY.md) and
+> [docs/cost_fix_results.md](docs/cost_fix_results.md).
 
 ## The problem
 
@@ -90,10 +93,10 @@ flowchart LR
 | [classifier/train.py](classifier/train.py) | Trains logistic regression + random forest, reports accuracy/confusion matrix, saves the better one to `model.joblib` |
 | [classifier/predict.py](classifier/predict.py) | Loads the trained model and scores a new prompt's tier |
 | [routing.yaml](routing.yaml) + [classifier/routing.py](classifier/routing.py) | Tier → model mapping, editable without touching code |
-| [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction typed-field coverage (emails, dates, amounts, ...), classification label match, summarization LLM-as-judge, general token-overlap fallback |
+| [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction typed-field coverage (emails, dates, amounts, ...), classification label match, summarization + general LLM-as-judge (shared judge helper, different rubrics) |
 | [eval/verifier.py](eval/verifier.py) | Scores the routed prompt's answer against the top-tier model's, auto-escalates on failure, logs every outcome — the scoring/escalation core, invoked by `eval.verification_worker` |
-| [db.py](db.py) | SQLite: the `requests` audit log (hashed prompt, tier, routed model, cost, latency, quality score, escalation) plus the `verification_jobs` queue that decouples verification from the API process |
-| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, enqueue a verification job; the single entry point later phases call |
+| [db.py](db.py) | SQLite: the `requests` audit log (hashed prompt, tier, routed model, cost, latency, quality score, escalation — logged immediately via `log_routed_request`, filled in later by `update_verification_result` if the request is sampled) plus the `verification_jobs` queue that decouples verification from the API process |
+| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, log immediately, and (for a `VERIFICATION_SAMPLE_RATE`-sampled subset of non-top-tier requests) enqueue a verification job; the single entry point later phases call |
 | [eval/verification_worker.py](eval/verification_worker.py) | The background worker for async verification, as a genuinely separate process from the API — polls `verification_jobs`, runs `eval.verifier` for each, logs the result. `python -m eval.verification_worker` for the persistent deployed version; `drain()` for scripts that want an immediate synchronous summary |
 | [eval/demo.py](eval/demo.py) | Runs the pipeline over the 10 baseline prompts and reports pass/fail/escalation per prompt |
 | [classifier/feedback.py](classifier/feedback.py) | Harvests escalations from the verification log into `failure_feedback.jsonl`, which `classifier.train` folds into the next retrain |
@@ -105,7 +108,8 @@ flowchart LR
 | [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `verification-worker` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
 | [eval/load_test.py](eval/load_test.py) | Routes 500+ prompts concurrently through the full live pipeline; per-prompt error handling so one provider hiccup doesn't sink the run |
 | [eval/report_charts.py](eval/report_charts.py) | Renders the dashboard's key numbers to static PNGs (matplotlib) from the same `stats.compute_stats()` data — no browser needed |
-| [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, and the escalation-cost/feedback-loop finding traced to its root cause |
+| [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, the escalation-cost/feedback-loop finding traced to its root cause, and the fix validated against it |
+| [docs/cost_fix_results.md](docs/cost_fix_results.md) | The before/after fix writeup: sampled verification + a real `general`-bucket judge, validated on a second live 500-request run (-2.6% loss -> +20.3% real saving) |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
 More modules (`router/`) land as the roadmap phases are built.
@@ -274,3 +278,25 @@ numbers above stand as measured rather than triggering a full,
 paid-API-calls re-run; the fix applies going forward. Verified live that
 `baseline_cost` and `verification_cost` now agree exactly for a verified
 request, as they should when both are computed from the same GPT-4o call.
+
+**The fix (2026-09-16) — the identified `general`-bucket problem, built and
+validated, not just diagnosed.** Two changes: verification now samples
+~20% of non-top-tier requests (`VERIFICATION_SAMPLE_RATE`) instead of
+checking all of them, and the `general` bucket uses the same LLM-as-judge
+mechanism `summarization` already had instead of raw token overlap. Ran
+another live 500-request load test at identical scale to the one that
+found the problem — same corpus, same models, same classifier, nothing
+about routing changed:
+
+| | before | after |
+|---|---:|---:|
+| true net cost reduction | -2.6% (a loss) | **+20.3%** |
+| escalation rate | 26.6% | 1.2% |
+| `general`-bucket false-escalation rate | 56% | 9% |
+
+Also cleared `classifier/data/failure_feedback.jsonl` — 14 training
+examples the old broken checker had fed back as mislabeled "complex"
+prompts — and retrained from the clean 224-prompt set alone: held-out
+accuracy landed at **97.8%**, exactly the original Phase 2 number,
+confirming the earlier accuracy drop really was the bad feedback and
+nothing else. Full breakdown: [docs/cost_fix_results.md](docs/cost_fix_results.md).

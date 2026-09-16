@@ -1,12 +1,14 @@
 # Case study: LLM Cost Autopilot
 
 **Routing 500 live requests through a complexity-based router cut LLM API
-spend 25.7% against an all-GPT-4o baseline. Once every dollar spent
-verifying those routing decisions is counted too, the system actually cost
-2.6% *more* than the baseline — a net loss, not a net win. Finding that,
-tracing it to its exact cause, and correcting an earlier version of this
-same report that understated the problem (it showed 3.7% saved, not a loss)
-is the actual result of this project, not the flattering number alone.**
+spend 25.7% against an all-GPT-4o baseline — but once every dollar spent
+verifying those decisions was counted honestly, the system actually cost
+2.6% *more* than the baseline. Finding that, tracing it to its exact cause,
+building the fix, and validating it on another live 500-request run —
+**20.3% real net savings, escalation rate down from 26.6% to 1.2%, classifier
+accuracy recovered from 85.4% to 97.8%** — is the actual arc of this
+project: not a single flattering number, but catching a system that looked
+fine, proving it wasn't, and proving the fix.**
 
 ## The idea
 
@@ -151,25 +153,60 @@ than any single percentage: **a system with real automated feedback is not
 automatically a system that's getting better** — you have to watch what it's
 actually learning from.
 
+## The fix, validated on another live 500-request run
+
+Two changes, targeting the two root causes above:
+
+1. **Stop checking every answer.** Verification now samples ~20% of
+   non-top-tier requests (`VERIFICATION_SAMPLE_RATE`) instead of all of
+   them — still enough to catch systematic problems, at a fraction of the
+   cost of grading every answer whether or not it needed grading.
+2. **Replace the bad `general`-bucket check.** It now uses the same
+   LLM-as-judge mechanism `summarization` already had (proven at 0% false-
+   escalation rate) instead of raw token overlap.
+
+Nothing about the routing logic changed — same classifier, same models,
+same tiers. Run again at the identical scale (500 requests, same corpus):
+
+| | before the fix | after the fix |
+|---|---:|---:|
+| routing-only cost reduction | 25.7% | 26.4% |
+| **true net cost reduction** | **-2.6% (a loss)** | **+20.3%** |
+| escalation rate | 26.6% | 1.2% |
+| `general`-bucket false-escalation rate | 56% | 9% |
+| classifier held-out accuracy | 85.4% (poisoned by bad feedback) | **97.8%** (recovered) |
+
+The classifier number needed one more step beyond the two code changes:
+the training examples the old broken checker had already fed back
+(`classifier/data/failure_feedback.jsonl` — real cases, like a grocery-list-
+to-JSON prompt mislabeled "complex") were cleared, and the classifier
+retrained from the clean hand-labeled set alone. It landed at exactly the
+original Phase 2 number, which is the whole point: the same clean data
+produces the same result, confirming the earlier drop really was the bad
+feedback and nothing else.
+
+Full breakdown, including what each of the two fixes contributed
+separately: [docs/cost_fix_results.md](docs/cost_fix_results.md).
+
 ## What's real vs. what would come next
 
-Everything above is measured, not projected: 6 phases, all live-tested
-against real provider APIs, every claim traceable to a script anyone can
-re-run (`python -m eval.load_test`, `python -m eval.report_charts`). What
-this project doesn't claim: it isn't running in production, the Docker
-deployment is config-validated but not container-tested (no daemon in this
-build environment), and the fix for the `general`-bucket check — a real
-LLM-as-judge for it, matching what `summarization` already has, or a
-human-review gate before an escalation is trusted as a training label — is
-identified but not built. That's the honest next step, not a hidden gap.
+Everything above is measured, not projected: live-tested against real
+provider APIs on two separate full-scale (500-request) runs — one that
+found the problem, one that confirmed the fix — every claim traceable to a
+script anyone can re-run (`python -m eval.load_test`,
+`python -m eval.report_charts`). What this project doesn't claim: it isn't
+running in production, and the Docker deployment is config-validated but
+not container-tested end-to-end (no daemon in this build environment) —
+though the underlying multi-process architecture it depends on (a separate
+verification-worker process) was verified live outside Docker.
 
-Two earlier gaps between the brief and the build were found and closed
-after this report was first written — verification now runs as a
-genuinely separate worker process (not an in-process thread pool), and
-extraction verification now checks real typed fields instead of comparing
-raw output strings. Both were caught the same way everything else in this
-project was: by testing the actual behavior, not trusting that the code
-looked right. See [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
+Two earlier gaps between the brief and the build were also found and
+closed along the way — verification runs as a genuinely separate worker
+process (not an in-process thread pool), and extraction verification checks
+real typed fields instead of comparing raw output strings. Both were caught
+the same way everything else in this project was: by testing the actual
+behavior, not trusting that the code looked right. See
+[docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
 
 ## Repo
 

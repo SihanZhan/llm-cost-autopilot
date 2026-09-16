@@ -63,6 +63,8 @@ check for the `general` bucket, or a human/second-opinion gate before an
 escalation is trusted as a training label) belongs with `eval.quality`, not
 the worker that faithfully executes what it's told to.
 
+> **Update 2026-09-16:** that fix is built — see [docs/cost_fix_results.md](cost_fix_results.md).
+
 **Known limitations:**
 - `classifier.predict` caches the loaded model in-process (`@lru_cache`), so
   a retrain from the worker doesn't reach a running API process until it

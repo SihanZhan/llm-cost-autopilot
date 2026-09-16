@@ -87,6 +87,11 @@ stricter second check) reviewing escalations before they're promoted to
 training data, or scoping the `general` bucket's threshold/method so it
 doesn't fire on cosmetic formatting differences.
 
+> **Update 2026-09-16:** built. `general` now uses an LLM-as-judge instead
+> of raw token overlap, and the poisoned feedback this section describes
+> was cleared and the classifier retrained clean (85.4% → 97.8%, exactly
+> the original number). See [docs/cost_fix_results.md](cost_fix_results.md).
+
 ## Known limitations
 
 - `use_case_for_prompt` is keyword matching, not a classifier — prompts that
