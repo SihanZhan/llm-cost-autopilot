@@ -190,8 +190,9 @@ baseline harness, and a live baseline run across all 5 models are all in place
 accuracy), and `routing.yaml` are all in place.
 
 **Phase 3 (async quality verification loop) — done.** Per-use-case quality
-checks, a real background-thread verifier with auto-escalation, and a
-feedback loop back into classifier training are all in place — see
+checks, a real async verifier with auto-escalation (originally an in-process
+background thread, later rebuilt as a separate worker process — see below),
+and a feedback loop back into classifier training are all in place — see
 [docs/phase3_notes.md](docs/phase3_notes.md) for a live demo run (2/10
 escalated) and a real finding: naive feedback from that run measurably hurt
 held-out accuracy (97.8% → 95.7%), which the notes dig into rather than
@@ -263,7 +264,9 @@ requests. Fixed in `stats.py`, propagated through the API, dashboard, and
 every doc that quoted the old number. `classifier/data/build_dataset.py`
 was also cleaned up — a handful of near-duplicate prompts (same sentence
 skeleton, different numbers, e.g. two unit-conversion prompts) were
-rewritten for genuine variety; current held-out accuracy is 87.5%.
+rewritten for genuine variety; held-out accuracy was 87.5% at this point
+(later superseded — see "The fix" below, which also cleared unrelated
+poisoned training data and brought it to 97.8%).
 
 A second, smaller measurement issue turned up in the same audit pass:
 `baseline_cost` (what a prompt "would have cost on GPT-4o") was estimated

@@ -24,7 +24,7 @@ Six phases, ~2 weeks. Each phase produces a concrete artifact.
 ## Phase 3 — Async quality verification loop
 
 - [x] Per-use-case quality thresholds (extraction field coverage, summary LLM-judge ≥ 4/5, classification label match vs. top tier) — [eval/quality.py](eval/quality.py)
-- [x] Async verifier: re-run prompt against top-tier model, score agreement, log divergence as routing failure — [eval/verifier.py](eval/verifier.py) (real background-thread async via `ThreadPoolExecutor`), logs to `eval/logs/verification_log.jsonl`
+- [x] Async verifier: re-run prompt against top-tier model, score agreement, log divergence as routing failure — [eval/verifier.py](eval/verifier.py), originally async via an in-process `ThreadPoolExecutor`, later rebuilt as a genuinely separate `eval/verification_worker.py` process (see [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md)), logs to `eval/logs/verification_log.jsonl`
 - [x] Auto-escalation: on failure, re-run with higher tier and return the better result; log original model, escalated model, cost delta, quality gap — same module, `VerificationResult.escalated` / `.cost_delta` / `.quality_gap`
 - [x] Feedback: each routing failure becomes a classifier training example; weekly retrain on accumulated failures — [classifier/feedback.py](classifier/feedback.py) harvests escalations into `failure_feedback.jsonl`, which `classifier.train` folds in automatically. See [docs/phase3_notes.md](docs/phase3_notes.md) for a live demo run, including a real accuracy regression the naive feedback loop caused — worth reading before trusting it blindly.
 

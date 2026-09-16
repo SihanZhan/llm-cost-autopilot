@@ -138,9 +138,10 @@ one triggered by real escalations from real runs, held-out accuracy went
 repeating trend, not noise. (Separately, a handful of near-duplicate
 hand-labeled prompts — e.g. "convert 5 miles to km" / "convert 3 kg to
 lbs," same skeleton, different numbers — were rewritten for more genuine
-variety, and accuracy on the current dataset sits at 87.5%; that's a data-
-quality fix, not evidence the feedback-loop problem went away.) The same
-over-eager `general`-bucket check that
+variety; that data-quality fix alone brought accuracy to 87.5%, not
+evidence the feedback-loop problem went away — it hadn't been fixed yet
+at that point. It has now: see "The fix" below, which clears the poisoned
+feedback itself and gets back to 97.8%.) The same over-eager `general`-bucket check that
 erodes cost savings is also quietly teaching the classifier the wrong
 lesson every time it fires: a grocery-list-to-JSON request or a "list three
 pros and cons" prompt isn't actually complex, but the verifier says it
