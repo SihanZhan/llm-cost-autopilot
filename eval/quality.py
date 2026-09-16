@@ -25,13 +25,14 @@ CLASSIFICATION_KEYWORDS = ("classify", "sentiment", "categorize", "categorise", 
 SUMMARIZATION_KEYWORDS = ("summarize", "summarise", "tl;dr", "in one sentence", "key takeaway")
 
 # extraction/classification demand an exact match against the top-tier model;
-# summarization accepts "4/5 or better" from the judge; general is a looser
-# similarity bar since it has no purpose-built check.
+# summarization and general both accept "4/5 or better" from their LLM-as-
+# judge (same judge mechanism, different rubric - see _SUMMARIZATION_RUBRIC
+# / _GENERAL_RUBRIC below).
 QUALITY_THRESHOLDS = {
     "extraction": 1.0,
     "classification": 1.0,
     "summarization": 0.8,
-    "general": 0.6,
+    "general": 0.8,
 }
 
 DEFAULT_JUDGE_MODEL_ID = "gpt-4o-mini"
@@ -199,24 +200,18 @@ def score_classification(routed_output: str, reference_output: str) -> tuple[flo
     return score, 0.0
 
 
-def score_summarization(
-    routed_output: str,
-    reference_output: str,
-    judge_model_id: str = DEFAULT_JUDGE_MODEL_ID,
+def _llm_judge_score(
+    rubric: str, routed_output: str, reference_output: str, judge_model_id: str
 ) -> tuple[float, float]:
-    """LLM-as-judge: ask a cheap model to rate 1-5 how well the routed
-    summary captures the same key information as the reference summary.
+    """Ask ``judge_model_id`` to rate agreement 1-5 per ``rubric`` (which must
+    reference {routed} and {reference}); returns (score/5, judge call cost).
     Falls back to token overlap (at zero extra cost) if the judge call fails."""
-    rubric = (
-        "You are grading a summary. Score how well SUMMARY A captures the same "
-        "key information as REFERENCE SUMMARY B, on a scale of 1 (misses the "
-        "point or contradicts B) to 5 (fully equivalent in substance).\n\n"
-        f"SUMMARY A:\n{routed_output}\n\nREFERENCE SUMMARY B:\n{reference_output}\n\n"
-        "Respond with only the integer score, nothing else."
-    )
     try:
         judge = get_model(judge_model_id)
-        resp = send_request(rubric, judge, max_tokens=5)
+        resp = send_request(
+            rubric.format(routed=routed_output, reference=reference_output),
+            judge, max_tokens=5,
+        )
         match = re.search(r"[1-5]", resp.output_text)
         if match:
             return int(match.group()) / 5.0, resp.cost
@@ -225,8 +220,54 @@ def score_summarization(
     return _token_overlap(routed_output, reference_output), 0.0
 
 
-def score_general(routed_output: str, reference_output: str) -> tuple[float, float]:
-    return _token_overlap(routed_output, reference_output), 0.0
+_SUMMARIZATION_RUBRIC = (
+    "You are grading a summary. Score how well SUMMARY A captures the same "
+    "key information as REFERENCE SUMMARY B, on a scale of 1 (misses the "
+    "point or contradicts B) to 5 (fully equivalent in substance).\n\n"
+    "SUMMARY A:\n{routed}\n\nREFERENCE SUMMARY B:\n{reference}\n\n"
+    "Respond with only the integer score, nothing else."
+)
+
+# The catch-all bucket (no keyword matched extraction/classification/
+# summarization) used to be scored by raw token overlap - counting shared
+# words. That's blind to two answers that are both correct but phrased
+# differently, which is exactly the common case between two different
+# models: measured at 500-request scale (docs/phase6_notes.md), it
+# wrongly rejected good answers 56% of the time, the single biggest driver
+# of both the cost problem (Phase 4/6) and the classifier-accuracy problem
+# (Phase 3/5) this project tracked. An LLM-as-judge - the same mechanism
+# summarization already used successfully (0% false-rejection rate) - asks
+# whether the two answers actually mean the same thing instead of whether
+# they're phrased the same way.
+_GENERAL_RUBRIC = (
+    "You are comparing two AI answers to the same request. Score how "
+    "equivalent ANSWER A is to REFERENCE ANSWER B in substance and "
+    "correctness - different wording, formatting, or length is fine as "
+    "long as the actual content/meaning matches, on a scale of 1 (wrong or "
+    "substantively different) to 5 (equivalent).\n\n"
+    "ANSWER A:\n{routed}\n\nREFERENCE ANSWER B:\n{reference}\n\n"
+    "Respond with only the integer score, nothing else."
+)
+
+
+def score_summarization(
+    routed_output: str,
+    reference_output: str,
+    judge_model_id: str = DEFAULT_JUDGE_MODEL_ID,
+) -> tuple[float, float]:
+    """LLM-as-judge: rate 1-5 how well the routed summary captures the same
+    key information as the reference summary."""
+    return _llm_judge_score(_SUMMARIZATION_RUBRIC, routed_output, reference_output, judge_model_id)
+
+
+def score_general(
+    routed_output: str,
+    reference_output: str,
+    judge_model_id: str = DEFAULT_JUDGE_MODEL_ID,
+) -> tuple[float, float]:
+    """LLM-as-judge: rate 1-5 whether the two answers are substantively
+    equivalent, tolerating different wording/formatting."""
+    return _llm_judge_score(_GENERAL_RUBRIC, routed_output, reference_output, judge_model_id)
 
 
 _SCORERS = {
