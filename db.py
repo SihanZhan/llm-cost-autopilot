@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE TABLE IF NOT EXISTS verification_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL,
+    request_id INTEGER NOT NULL,
     prompt TEXT NOT NULL,
     tier INTEGER NOT NULL,
     routed_model_id TEXT NOT NULL,
@@ -68,6 +69,12 @@ def prompt_hash(prompt: str) -> str:
 def init_db(path: Path = DB_FILE) -> None:
     with sqlite3.connect(path) as conn:
         conn.executescript(_SCHEMA)
+        # migration: verification_jobs predates request_id (added when
+        # verification became sampled + logging was split from checking).
+        # CREATE TABLE IF NOT EXISTS above won't add it to an existing table.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(verification_jobs)")}
+        if "request_id" not in cols:
+            conn.execute("ALTER TABLE verification_jobs ADD COLUMN request_id INTEGER")
 
 
 def baseline_cost_for(input_tokens: int, output_tokens: int) -> float:
@@ -79,25 +86,55 @@ def baseline_cost_for(input_tokens: int, output_tokens: int) -> float:
     )
 
 
-def log_request(row: dict, path: Path = DB_FILE) -> None:
+def log_routed_request(row: dict, path: Path = DB_FILE) -> int:
+    """Log a request as soon as the routed (cheap) model answers, before
+    verification has necessarily even been decided (let alone completed).
+
+    Cost/routing tracking must not depend on whether a request ends up
+    sampled for verification - every routed call gets a row immediately;
+    ``update_verification_result`` fills the rest in later if/when
+    verification actually runs. Returns the new row's id.
+    """
     init_db(path)
     with sqlite3.connect(path) as conn:
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO requests (
                 timestamp, prompt_hash, use_case, tier, routed_model,
                 routed_cost, routed_latency, baseline_cost, verified,
                 quality_score, passed, escalated, final_model, cost_delta,
                 verification_cost
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 0, ?, 0, 0)
             """,
             (
                 row["timestamp"], row["prompt_hash"], row["use_case"], row["tier"],
                 row["routed_model"], row["routed_cost"], row["routed_latency"],
+                row["baseline_cost"], row["routed_model"],
+            ),
+        )
+        return cur.lastrowid
+
+
+def update_verification_result(request_id: int, row: dict, path: Path = DB_FILE) -> None:
+    """Fill in a routed request's row once verification actually completes.
+
+    ``baseline_cost`` is recomputed here (not left as the routed-token
+    estimate from ``log_routed_request``) when a real top-tier response
+    exists - see eval/verifier.py for why that's more accurate.
+    """
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            """
+            UPDATE requests
+            SET baseline_cost = ?, verified = ?, quality_score = ?, passed = ?,
+                escalated = ?, final_model = ?, cost_delta = ?, verification_cost = ?
+            WHERE id = ?
+            """,
+            (
                 row["baseline_cost"], int(row["verified"]), row["quality_score"],
                 None if row["passed"] is None else int(row["passed"]),
                 int(row["escalated"]), row["final_model"], row["cost_delta"],
-                row["verification_cost"],
+                row["verification_cost"], request_id,
             ),
         )
 
@@ -122,9 +159,13 @@ def fetch_requests(path: Path = DB_FILE) -> list[dict]:
 
 
 def enqueue_verification_job(
-    prompt: str, tier: int, routed_response, path: Path = DB_FILE
+    prompt: str, tier: int, routed_response, request_id: int, path: Path = DB_FILE
 ) -> int:
-    """Queue a verification job for ``routed_response`` and return its id."""
+    """Queue a verification job for ``routed_response`` and return its id.
+
+    ``request_id`` links back to the row ``log_routed_request`` already
+    created, so the worker can UPDATE it in place once verification runs.
+    """
     from datetime import datetime, timezone
 
     init_db(path)
@@ -132,12 +173,12 @@ def enqueue_verification_job(
         cur = conn.execute(
             """
             INSERT INTO verification_jobs (
-                created_at, prompt, tier, routed_model_id, routed_output_text,
+                created_at, request_id, prompt, tier, routed_model_id, routed_output_text,
                 routed_input_tokens, routed_output_tokens, routed_latency, routed_cost
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                datetime.now(timezone.utc).isoformat(), prompt, tier,
+                datetime.now(timezone.utc).isoformat(), request_id, prompt, tier,
                 routed_response.model_id, routed_response.output_text,
                 routed_response.input_tokens, routed_response.output_tokens,
                 routed_response.latency, routed_response.cost,

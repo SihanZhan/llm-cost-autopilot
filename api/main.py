@@ -55,11 +55,14 @@ class CompletionResponse(BaseModel):
     output_tokens: int
     cost: float
     latency: float
-    verification_job_id: int
+    verification_job_id: int | None
     note: str = (
-        "Quality verification is queued for the verification-worker process "
-        "and is not reflected in this response — check /v1/stats or the "
-        "dashboard for verification/escalation outcomes once it's processed."
+        "If verification_job_id is set, quality verification is queued for "
+        "the verification-worker process and is not reflected in this "
+        "response — check /v1/stats or the dashboard once it's processed. "
+        "Only a sample of requests are verified (VERIFICATION_SAMPLE_RATE); "
+        "a null verification_job_id means this one wasn't sampled, or was "
+        "already routed to the top-tier model."
     )
 
 

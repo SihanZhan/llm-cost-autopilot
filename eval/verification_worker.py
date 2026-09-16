@@ -42,7 +42,9 @@ def process_one(job: dict) -> VerificationResult:
     """Run verification for a single claimed job, mark it done, return the result."""
     routed_response = _job_to_response(job)
     try:
-        result = verify_and_maybe_escalate(job["prompt"], job["tier"], routed_response)
+        result = verify_and_maybe_escalate(
+            job["request_id"], job["prompt"], job["tier"], routed_response
+        )
         db.mark_job_done(job["id"])
         return result
     except Exception as exc:  # noqa: BLE001 - a bad job shouldn't kill the worker

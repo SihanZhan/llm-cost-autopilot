@@ -51,6 +51,7 @@ class VerificationResult:
 
 
 def _log(
+    request_id: int,
     result: VerificationResult,
     routed_response: Response,
     verifier_response: Response | None = None,
@@ -69,15 +70,9 @@ def _log(
     # verifier tokens exist).
     baseline_tokens_source = verifier_response if verifier_response is not None else routed_response
 
-    db.log_request(
+    db.update_verification_result(
+        request_id,
         {
-            "timestamp": result.timestamp,
-            "prompt_hash": db.prompt_hash(result.prompt),
-            "use_case": result.use_case,
-            "tier": result.tier,
-            "routed_model": result.routed_model_id,
-            "routed_cost": result.routed_cost,
-            "routed_latency": routed_response.latency,
             "baseline_cost": db.baseline_cost_for(
                 baseline_tokens_source.input_tokens, baseline_tokens_source.output_tokens
             ),
@@ -88,21 +83,25 @@ def _log(
             "final_model": result.final_model_id,
             "cost_delta": result.cost_delta,
             "verification_cost": result.verification_cost,
-        }
+        },
     )
 
 
 def verify_and_maybe_escalate(
+    request_id: int,
     prompt: str,
     tier: int,
     routed_response: Response,
     *,
     escalate_on_failure: bool = True,
 ) -> VerificationResult:
-    """Score ``routed_response`` against the top-tier model and log the outcome.
+    """Score ``routed_response`` against the top-tier model and update the
+    request's row (``request_id``, from ``db.log_routed_request``) with the
+    outcome.
 
-    Runs synchronously in whatever thread calls it — ``submit_verification``
-    is what actually makes this async by handing it to a background thread.
+    Runs synchronously in whatever thread/process calls it —
+    eval.verification_worker is what actually makes this async, by running
+    it in a separate process from the API.
     """
     use_case = use_case_for_prompt(prompt)
     threshold = QUALITY_THRESHOLDS[use_case]
@@ -111,6 +110,8 @@ def verify_and_maybe_escalate(
 
     if routed_response.model_id == top_tier_model.model_id:
         # Nothing to verify against - the routed model already is the top tier.
+        # (eval.pipeline.route_and_verify already filters these out before
+        # enqueueing; this stays as a defensive fallback for direct callers.)
         result = VerificationResult(
             timestamp=timestamp, prompt=prompt, use_case=use_case, tier=tier,
             routed_model_id=routed_response.model_id, routed_cost=routed_response.cost,
@@ -119,7 +120,7 @@ def verify_and_maybe_escalate(
             final_model_id=routed_response.model_id, final_output=routed_response.output_text,
             cost_delta=0.0, verification_cost=0.0, quality_gap=0.0,
         )
-        _log(result, routed_response)
+        _log(request_id, result, routed_response)
         return result
 
     try:
@@ -135,7 +136,7 @@ def verify_and_maybe_escalate(
             final_model_id=routed_response.model_id, final_output=routed_response.output_text,
             cost_delta=0.0, verification_cost=0.0, quality_gap=0.0, error=str(exc),
         )
-        _log(result, routed_response)
+        _log(request_id, result, routed_response)
         return result
 
     score, judge_cost = score_agreement(
@@ -164,5 +165,5 @@ def verify_and_maybe_escalate(
         verification_cost=verification_cost,
         quality_gap=0.0 if passed else round(threshold - score, 4),
     )
-    _log(result, routed_response, verifier_response)
+    _log(request_id, result, routed_response, verifier_response)
     return result
