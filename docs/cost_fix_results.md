@@ -22,6 +22,12 @@ about the routing logic changed. The entire swing, from losing money to
 saving over a fifth of the baseline, came from fixing how verification
 checks quality and how often it bothers to.
 
+**Reproducibility check (2026-09-17):** ran the identical load test again,
+independently, after unrelated documentation fixes (no code changes) —
+20.35% true net (vs. 20.32%), 1.4% escalation rate (vs. 1.2%), `general`-
+bucket false-escalation rate 11% (vs. 9%). Two independent live runs, same
+result to within noise. The fix isn't a one-off lucky sample.
+
 ## What each fix contributed
 
 **Sampling (verify ~20% of non-top-tier requests instead of 100%)** cut
