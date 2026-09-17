@@ -1,17 +1,21 @@
 """Phase 5: FastAPI service exposing the router built in Phases 1-4.
 
 Endpoints:
-    POST /v1/completions      classify -> route -> call the cheap model,
-                               return immediately; verification (Phase 3)
-                               keeps running in the background and shows up
-                               later in /v1/stats and the dashboard.
-    GET  /v1/models           the model registry: providers, per-token
-                               pricing, measured latency, quality tier.
-    GET  /v1/stats            the same cost-savings summary the dashboard
-                               shows (stats.compute_stats), as JSON.
-    PUT  /v1/routing-config   change tier -> model mappings live; takes
-                               effect on the very next request, no redeploy.
-    GET  /health               liveness check.
+    POST /v1/completions           classify -> route -> call the cheap
+                                    model, return immediately; verification
+                                    (Phase 3) keeps running separately and
+                                    shows up later in /v1/stats, the
+                                    dashboard, and GET /v1/completions/{id}.
+    GET  /v1/completions/{id}      poll for the verified / possibly-
+                                    escalated final answer to a request
+                                    already made via POST /v1/completions.
+    GET  /v1/models                the model registry: providers, per-token
+                                    pricing, measured latency, quality tier.
+    GET  /v1/stats                 the same cost-savings summary the
+                                    dashboard shows (stats.compute_stats).
+    PUT  /v1/routing-config        change tier -> model mappings live;
+                                    takes effect next request, no redeploy.
+    GET  /health                   liveness check.
 
 Run:
     uvicorn api.main:app --reload
@@ -21,6 +25,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+import db
 import stats
 from classifier.routing import load_routing_config, update_routing_config
 from classifier.tiers import tier_name
@@ -55,15 +60,26 @@ class CompletionResponse(BaseModel):
     output_tokens: int
     cost: float
     latency: float
+    request_id: int
     verification_job_id: int | None
     note: str = (
-        "If verification_job_id is set, quality verification is queued for "
-        "the verification-worker process and is not reflected in this "
-        "response — check /v1/stats or the dashboard once it's processed. "
-        "Only a sample of requests are verified (VERIFICATION_SAMPLE_RATE); "
-        "a null verification_job_id means this one wasn't sampled, or was "
-        "already routed to the top-tier model."
+        "This response is always the routed (cheap-model) answer, even if "
+        "verification later escalates it - GET /v1/completions/{request_id} "
+        "returns the corrected answer once verification (if sampled) "
+        "completes. Only a sample of requests are verified "
+        "(VERIFICATION_SAMPLE_RATE); a null verification_job_id means this "
+        "one wasn't sampled, or was already routed to the top-tier model."
     )
+
+
+class CompletionResultResponse(BaseModel):
+    request_id: int
+    status: str  # "not_checked" | "pending" | "check_failed" | "checked"
+    output_text: str
+    model_id: str
+    escalated: bool
+    quality_score: float | None
+    passed: bool | None
 
 
 class ModelInfo(BaseModel):
@@ -117,7 +133,7 @@ def create_completion(request: CompletionRequest) -> CompletionResponse:
     """Classify the prompt, route it to a model, call it, and kick off
     async verification. Returns as soon as the routed model responds."""
     try:
-        tier, response, verification_job_id = route_and_verify(
+        tier, response, request_id, verification_job_id = route_and_verify(
             request.prompt, max_tokens=request.max_tokens
         )
     except LLMRequestError as exc:
@@ -146,7 +162,45 @@ def create_completion(request: CompletionRequest) -> CompletionResponse:
         output_tokens=response.output_tokens,
         cost=response.cost,
         latency=response.latency,
+        request_id=request_id,
         verification_job_id=verification_job_id,
+    )
+
+
+@app.get("/v1/completions/{request_id}", response_model=CompletionResultResponse)
+def get_completion_result(request_id: int) -> CompletionResultResponse:
+    """Poll for the verified / possibly-escalated final answer to a request
+    made via POST /v1/completions. This is what actually closes the loop the
+    project brief's "auto-escalation... return the better result" implies -
+    POST /v1/completions itself always returns the routed answer immediately
+    and never waits on verification, so without this endpoint an escalation
+    only ever updated internal stats and the caller had no way to get the
+    corrected answer at all."""
+    row = db.get_request(request_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"no request with id {request_id}")
+
+    if row["verified"]:
+        status = "checked"
+    else:
+        job = db.get_verification_job_for_request(request_id)
+        if job is None:
+            status = "not_checked"
+        elif job["status"] in ("pending", "claimed"):
+            status = "pending"
+        elif job["status"] == "error":
+            status = "check_failed"
+        else:
+            status = "not_checked"
+
+    return CompletionResultResponse(
+        request_id=request_id,
+        status=status,
+        output_text=row["final_output"],
+        model_id=row["final_model"],
+        escalated=bool(row["escalated"]),
+        quality_score=row["quality_score"],
+        passed=None if row["passed"] is None else bool(row["passed"]),
     )
 
 

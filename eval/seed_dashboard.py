@@ -58,7 +58,7 @@ def main() -> int:
     print(f"routing {len(prompts)} prompts ({args.per_tier} per tier) through the live pipeline\n")
 
     for i, row in enumerate(prompts, start=1):
-        tier, response, job_id = route_and_verify(row["prompt"])
+        tier, response, request_id, job_id = route_and_verify(row["prompt"])
         print(f"  [{i:>3}/{len(prompts)}] {row['id']:<14} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}  (queued, job {job_id})")
 
     print("\ndraining the verification queue (eval.verification_worker)...")

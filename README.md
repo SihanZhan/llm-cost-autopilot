@@ -103,13 +103,14 @@ flowchart LR
 | [eval/seed_dashboard.py](eval/seed_dashboard.py) | Routes a tier-balanced sample of the labeled dataset through the live pipeline to populate the dashboard with real data |
 | [dashboard/app.py](dashboard/app.py) | Streamlit dashboard: headline cost-reduction metric, daily cost vs. baseline, routing distribution, quality-score distribution, escalation rate over time |
 | [stats.py](stats.py) | `compute_stats()` — the cost-savings summary, shared by `GET /v1/stats` and the dashboard so they can't disagree |
-| [api/main.py](api/main.py) | FastAPI service: `POST /v1/completions`, `GET /v1/models`, `GET /v1/stats`, `GET`/`PUT /v1/routing-config`, `GET /health` |
+| [api/main.py](api/main.py) | FastAPI service: `POST /v1/completions`, `GET /v1/completions/{id}` (poll for the verified/corrected answer), `GET /v1/models`, `GET /v1/stats`, `GET`/`PUT /v1/routing-config`, `GET /health` |
 | [classifier/retrain_worker.py](classifier/retrain_worker.py) | Loops: harvest routing-failure feedback, retrain if anything new came in, sleep. An addition beyond the brief's minimum — automates what was otherwise a manual step. |
 | [Dockerfile](Dockerfile) + [docker-compose.yml](docker-compose.yml) | `api` + `verification-worker` + `retrain-worker` containers sharing state via a bind mount (SQLite isn't client-server, so there's no separate DB container) |
 | [eval/load_test.py](eval/load_test.py) | Routes 500+ prompts concurrently through the full live pipeline; per-prompt error handling so one provider hiccup doesn't sink the run |
 | [eval/report_charts.py](eval/report_charts.py) | Renders the dashboard's key numbers to static PNGs (matplotlib) from the same `stats.compute_stats()` data — no browser needed |
 | [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, the escalation-cost/feedback-loop finding traced to its root cause, and the fix validated against it |
 | [docs/cost_fix_results.md](docs/cost_fix_results.md) | The before/after fix writeup: sampled verification + a real `general`-bucket judge, validated on a second live 500-request run (-2.6% loss -> +20.3% real saving) |
+| [docs/completion_polling.md](docs/completion_polling.md) | `GET /v1/completions/{id}` — lets a caller actually retrieve an escalated/corrected answer, closing a real gap between the brief's "return the better result" and what escalation did before (update internal stats only) |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
 More modules (`router/`) land as the roadmap phases are built.
@@ -163,6 +164,8 @@ docker compose up --build          # api + verification-worker + retrain-worker 
 ```bash
 curl -X POST localhost:8000/v1/completions -H "Content-Type: application/json" \
   -d '{"prompt": "Summarize this in one sentence: ..."}'
+# -> includes "request_id": 123 - poll it for the verified/corrected answer:
+curl localhost:8000/v1/completions/123
 curl localhost:8000/v1/models
 curl localhost:8000/v1/stats
 curl -X PUT localhost:8000/v1/routing-config -H "Content-Type: application/json" \

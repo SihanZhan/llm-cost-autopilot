@@ -57,7 +57,7 @@ def build_run_list(n: int) -> list[str]:
 def _run_one(prompt: str) -> tuple[bool, str | None, float]:
     """Route one prompt; return (ok, error, routed_cost)."""
     try:
-        _tier, response, _job_id = route_and_verify(prompt)
+        _tier, response, _request_id, _job_id = route_and_verify(prompt)
         return True, None, response.cost
     except LLMRequestError as exc:
         return False, str(exc), 0.0

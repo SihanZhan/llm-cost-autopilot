@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS requests (
     passed INTEGER,
     escalated INTEGER NOT NULL,
     final_model TEXT NOT NULL,
+    final_output TEXT NOT NULL DEFAULT '',
     cost_delta REAL NOT NULL,
     verification_cost REAL NOT NULL
 );
@@ -75,6 +76,12 @@ def init_db(path: Path = DB_FILE) -> None:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(verification_jobs)")}
         if "request_id" not in cols:
             conn.execute("ALTER TABLE verification_jobs ADD COLUMN request_id INTEGER")
+        # migration: requests predates final_output (added so a caller can
+        # actually retrieve the corrected answer after escalation, instead
+        # of escalation only ever updating internal stats).
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(requests)")}
+        if "final_output" not in cols:
+            conn.execute("ALTER TABLE requests ADD COLUMN final_output TEXT NOT NULL DEFAULT ''")
 
 
 def baseline_cost_for(input_tokens: int, output_tokens: int) -> float:
@@ -93,7 +100,10 @@ def log_routed_request(row: dict, path: Path = DB_FILE) -> int:
     Cost/routing tracking must not depend on whether a request ends up
     sampled for verification - every routed call gets a row immediately;
     ``update_verification_result`` fills the rest in later if/when
-    verification actually runs. Returns the new row's id.
+    verification actually runs. ``final_output`` starts as the routed
+    model's own answer (correct until/unless verification escalates it) so
+    ``GET /v1/completions/{request_id}`` always has something to return.
+    Returns the new row's id.
     """
     init_db(path)
     with sqlite3.connect(path) as conn:
@@ -102,14 +112,14 @@ def log_routed_request(row: dict, path: Path = DB_FILE) -> int:
             INSERT INTO requests (
                 timestamp, prompt_hash, use_case, tier, routed_model,
                 routed_cost, routed_latency, baseline_cost, verified,
-                quality_score, passed, escalated, final_model, cost_delta,
-                verification_cost
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 0, ?, 0, 0)
+                quality_score, passed, escalated, final_model, final_output,
+                cost_delta, verification_cost
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, 0, ?, ?, 0, 0)
             """,
             (
                 row["timestamp"], row["prompt_hash"], row["use_case"], row["tier"],
                 row["routed_model"], row["routed_cost"], row["routed_latency"],
-                row["baseline_cost"], row["routed_model"],
+                row["baseline_cost"], row["routed_model"], row["routed_output"],
             ),
         )
         return cur.lastrowid
@@ -121,22 +131,52 @@ def update_verification_result(request_id: int, row: dict, path: Path = DB_FILE)
     ``baseline_cost`` is recomputed here (not left as the routed-token
     estimate from ``log_routed_request``) when a real top-tier response
     exists - see eval/verifier.py for why that's more accurate.
+    ``final_output`` is overwritten with the escalated answer when
+    escalated, or left as the routed answer otherwise - this is what makes
+    the corrected answer actually retrievable via ``get_request``, instead
+    of escalation only ever updating internal stats.
     """
     with sqlite3.connect(path) as conn:
         conn.execute(
             """
             UPDATE requests
             SET baseline_cost = ?, verified = ?, quality_score = ?, passed = ?,
-                escalated = ?, final_model = ?, cost_delta = ?, verification_cost = ?
+                escalated = ?, final_model = ?, final_output = ?, cost_delta = ?,
+                verification_cost = ?
             WHERE id = ?
             """,
             (
                 row["baseline_cost"], int(row["verified"]), row["quality_score"],
                 None if row["passed"] is None else int(row["passed"]),
-                int(row["escalated"]), row["final_model"], row["cost_delta"],
-                row["verification_cost"], request_id,
+                int(row["escalated"]), row["final_model"], row["final_output"],
+                row["cost_delta"], row["verification_cost"], request_id,
             ),
         )
+
+
+def get_request(request_id: int, path: Path = DB_FILE) -> dict | None:
+    """Fetch one logged request by id, or None if it doesn't exist."""
+    if not path.exists():
+        return None
+    with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM requests WHERE id = ?", (request_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_verification_job_for_request(request_id: int, path: Path = DB_FILE) -> dict | None:
+    """Fetch the (most recent) verification job queued for ``request_id``, if
+    any - used to tell "never sampled for verification" apart from
+    "sampled, but the worker hasn't gotten to it yet." """
+    if not path.exists():
+        return None
+    with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM verification_jobs WHERE request_id = ? ORDER BY id DESC LIMIT 1",
+            (request_id,),
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def fetch_requests(path: Path = DB_FILE) -> list[dict]:

@@ -51,7 +51,7 @@ def main() -> int:
 
     pending = []
     for row in prompts:
-        tier, response, job_id = route_and_verify(row["prompt"])
+        tier, response, request_id, job_id = route_and_verify(row["prompt"])
         pending.append((row["id"], tier, response, row["prompt"], job_id))
         note = f"queued for verification-worker, job {job_id}" if job_id else "already top-tier, nothing to verify against"
         print(f"  {row['id']:<20} tier {tier}  ->  {response.model_id:<16} ${response.cost:.5f}  ({note})")

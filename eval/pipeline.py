@@ -34,16 +34,20 @@ def _sample_rate() -> float:
     return float(os.getenv("VERIFICATION_SAMPLE_RATE", str(DEFAULT_VERIFICATION_SAMPLE_RATE)))
 
 
-def route_and_verify(prompt: str, *, max_tokens: int = 512) -> tuple[int, Response, int | None]:
+def route_and_verify(
+    prompt: str, *, max_tokens: int = 512
+) -> tuple[int, Response, int, int | None]:
     """Classify + route + call the cheap model, log it, and - for a sampled
     subset of non-top-tier requests - enqueue async verification.
 
-    Returns ``(tier, routed_response, verification_job_id)``. The caller can
-    hand ``routed_response`` back to the user right away. ``verification_job_id``
-    is ``None`` when this request wasn't sampled for verification (or was
-    already routed to the top tier, where there's nothing to check against) -
-    its row in ``requests`` is still logged either way, just without a
-    verification outcome filled in.
+    Returns ``(tier, routed_response, request_id, verification_job_id)``.
+    The caller can hand ``routed_response`` back to the user right away, and
+    give them ``request_id`` to poll ``GET /v1/completions/{request_id}``
+    later for the verified/possibly-escalated final answer.
+    ``verification_job_id`` is ``None`` when this request wasn't sampled for
+    verification (or was already routed to the top tier, where there's
+    nothing to check against) - ``request_id``'s row is logged either way,
+    just without a verification outcome filled in (yet, if ever).
     """
     tier = predict_tier(prompt)
     model = model_for_tier(tier)
@@ -59,6 +63,7 @@ def route_and_verify(prompt: str, *, max_tokens: int = 512) -> tuple[int, Respon
             "routed_cost": response.cost,
             "routed_latency": response.latency,
             "baseline_cost": db.baseline_cost_for(response.input_tokens, response.output_tokens),
+            "routed_output": response.output_text,
         }
     )
 
@@ -70,7 +75,7 @@ def route_and_verify(prompt: str, *, max_tokens: int = 512) -> tuple[int, Respon
     if sampled:
         job_id = db.enqueue_verification_job(prompt, tier, response, request_id)
 
-    return tier, response, job_id
+    return tier, response, request_id, job_id
 
 
 def _now_iso() -> str:

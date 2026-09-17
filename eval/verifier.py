@@ -81,6 +81,7 @@ def _log(
             "passed": result.passed,
             "escalated": result.escalated,
             "final_model": result.final_model_id,
+            "final_output": result.final_output,
             "cost_delta": result.cost_delta,
             "verification_cost": result.verification_cost,
         },
