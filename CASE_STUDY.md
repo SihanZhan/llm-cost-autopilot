@@ -1,27 +1,25 @@
 # Case study: LLM Cost Autopilot
 
-**Routing 500 live requests through a complexity-based router cut LLM API
-spend 25.7% against an all-GPT-4o baseline — but once every dollar spent
-verifying those decisions was counted honestly, the system actually cost
-2.6% *more* than the baseline. Finding that, tracing it to its exact cause,
-building the fix, and validating it on another live 500-request run —
-**20.3% real net savings, escalation rate down from 26.6% to 1.2%, classifier
-accuracy recovered from 85.4% to 97.8%** — is the actual arc of this
-project: not a single flattering number, but catching a system that looked
-fine, proving it wasn't, and proving the fix.**
+**I built a system that reduced LLM API costs by 20.3% while maintaining
+98.7% quality parity with the top-tier model.**
 
-## The idea
+> Accomplished a 20.3% reduction in LLM API spend while holding 98.7%
+> quality parity with GPT-4o, as measured by two independent 500-request
+> live load tests against real OpenAI, Anthropic, and local Llama traffic,
+> by building a complexity-based router — a 97.8%-accurate classifier
+> feeding a sampled async verification loop with LLM-as-judge scoring,
+> auto-escalation, and a feedback loop into classifier retraining — after
+> finding and fixing a hidden defect where checking every single answer
+> was itself erasing the savings it was supposed to protect.
 
 Most teams running LLMs in production send every request — a one-line
 extraction and a multi-step planning task alike — to the same frontier
-model. That's simple, but it's also paying frontier prices for work a
-$0.15-per-million-token model could do just as well. LLM Cost Autopilot
-treats model choice as a routing decision: classify each request's
-complexity, send it to the cheapest model that can actually handle it, and
-continuously check that the cheap model's answer was good enough — with a
-mechanism to catch and fix it when it wasn't.
+model, paying frontier prices for work a fraction of it could do just as
+well. This system treats model choice as a routing decision instead of a
+hard-coded constant, and treats "does this actually work" as something to
+measure, not assume.
 
-## The system
+## The routing logic
 
 ```mermaid
 flowchart LR
@@ -32,35 +30,52 @@ flowchart LR
     clf -->|complex| top[GPT-4o]
     cheap & mid & top --> resp[Response]
     resp --> api --> user
-    api -.enqueue job.-> queue[(SQLite<br/>verification_jobs)]
-    queue -.poll.-> worker[verification-worker container<br/>separate process]
-    worker --> verify[Verify vs. top tier]
-    verify -->|fail| esc[Escalate + log]
-    esc -.feedback.-> retrain[retrain-worker container]
-    retrain -.updates.-> clf
-    verify --> db[(SQLite<br/>requests)]
+```
+
+Every request first hits a **classifier** — scikit-learn, trained on 224
+hand-labeled prompts spanning three complexity tiers (simple/moderate/
+complex) — that scores it in milliseconds using cheap lexical features
+(token count, instruction verbs like *analyze* vs. *extract*, constraint
+count, output-format complexity). No LLM call needed to decide which LLM to
+call. The predicted tier is looked up in a **router** (`routing.yaml`) that
+maps it to a model: free local Llama for simple requests, GPT-4o-mini for
+moderate ones, GPT-4o for complex ones. That mapping is live-editable
+through `PUT /v1/routing-config` — swap models without touching code or
+redeploying. The classifier's own accuracy — 97.8% held-out — is what makes
+the whole routing decision trustworthy in the first place.
+
+## The feedback loop
+
+```mermaid
+flowchart LR
+    resp[Routed response] -.enqueue job.-> queue[(SQLite<br/>verification_jobs)]
+    queue -.poll.-> worker[verification-worker<br/>separate process]
+    worker --> verify[Score vs. top-tier answer]
+    verify -->|fail| esc[Escalate: swap in<br/>top-tier answer]
+    esc -.feedback.-> retrain[retrain-worker]
+    retrain -.updates.-> clf[Classifier]
+    verify --> db[(SQLite: requests)]
     db --> dash[Dashboard / API stats]
 ```
 
-- **Classifier** (scikit-learn, trained on 224 hand-labeled prompts across
-  three complexity tiers) scores every request in milliseconds using cheap
-  lexical features — no LLM call needed to decide which LLM to call.
-- **Router** maps tier → model via a YAML file, live-editable through
-  `PUT /v1/routing-config` — no redeploy to change the policy.
-- **Verifier** re-runs the same prompt against the top-tier model
-  *after* the cheap response has already gone back to the caller, scores
-  agreement with a check suited to the request type, and escalates
-  (substitutes the top-tier answer) on failure — all in a separate
-  `verification-worker` process from the API, so verification never adds
-  latency to the response and can't compete with the API for resources.
-- **Feedback loop** turns every escalation into a new training example and
-  retrains the classifier on accumulated failures.
-- **Dashboard and API** (`GET /v1/stats`, Streamlit) read the same logged
-  data through one shared aggregation, so they can't quote different numbers
-  for the same thing.
+The router's decision isn't trusted blindly. After a response goes back to
+the caller, a **separate worker process** (not a thread in the API — a
+genuinely independent process, so verification never adds latency or
+competes with the API for resources) re-runs a sampled subset of requests
+against the top-tier model and scores agreement with a check suited to the
+request type: exact match for classification, typed-field coverage for
+extraction, an LLM-as-judge for summarization and everything else. A
+failure gets **escalated** — the top-tier answer replaces the cheap one as
+the record of what actually happened — and logged as a new training
+example. A **retrain worker** periodically folds accumulated failures back
+into the classifier, so routing decisions are supposed to get better from
+the mistakes the system catches in itself.
+
+That loop — verify, escalate, feed back, retrain — is also exactly what
+this project's real finding came out of. See below.
 
 Full technical detail, live-tested phase by phase, is in
-[docs/](docs) (`baseline_results.md` through `phase6_notes.md`) and
+[docs/](docs) (`baseline_results.md` through `completion_polling.md`) and
 [ROADMAP.md](ROADMAP.md).
 
 ## The headline number, and the number under it
@@ -192,26 +207,37 @@ separately: [docs/cost_fix_results.md](docs/cost_fix_results.md).
 ## What's real vs. what would come next
 
 Everything above is measured, not projected: live-tested against real
-provider APIs on two separate full-scale (500-request) runs — one that
-found the problem, one that confirmed the fix — every claim traceable to a
-script anyone can re-run (`python -m eval.load_test`,
-`python -m eval.report_charts`). What this project doesn't claim: it isn't
-running in production, and the Docker deployment is config-validated but
-not container-tested end-to-end (no daemon in this build environment) —
-though the underlying multi-process architecture it depends on (a separate
-verification-worker process) was verified live outside Docker.
+provider APIs across *three* full-scale (500-request) runs — one that found
+the problem, one that confirmed the fix, one more that confirmed the fix
+again independently (20.35% vs. 20.32% net — same result, not a lucky
+sample) — every claim traceable to a script anyone can re-run
+(`python -m eval.load_test`, `python -m eval.report_charts`). What this
+project doesn't claim: it isn't running in production, the Docker
+deployment is config-validated but not container-tested end-to-end (no
+daemon in this build environment) — though the underlying multi-process
+architecture it depends on (a separate verification-worker process) was
+verified live outside Docker — and verification sampling is currently
+uniform random rather than risk-targeted (check the ones likely to be
+wrong, not a random fifth of everything), a real, identified next
+improvement that isn't built.
 
-Two earlier gaps between the brief and the build were also found and
-closed along the way — verification runs as a genuinely separate worker
-process (not an in-process thread pool), and extraction verification checks
-real typed fields instead of comparing raw output strings. Both were caught
-the same way everything else in this project was: by testing the actual
-behavior, not trusting that the code looked right. See
-[docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
+Three gaps between the brief and the build were found and closed along the
+way, each caught by testing actual behavior rather than trusting that the
+code looked right:
+- Verification runs as a genuinely separate worker process, not an
+  in-process thread pool.
+- Extraction verification checks real typed fields instead of comparing
+  raw output strings. See [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
+- Escalation now actually produces a retrievable corrected answer
+  (`GET /v1/completions/{id}`) — before, "auto-escalation... return the
+  better result" only ever updated internal stats; the caller who asked
+  the question had no way to receive the fix. See
+  [docs/completion_polling.md](docs/completion_polling.md).
 
 ## Repo
 
 Six phases end to end: unified provider interface → complexity classifier →
 async verification with auto-escalation → cost dashboard → FastAPI service
-→ this load test. See [README.md](README.md) for setup and
-[ROADMAP.md](ROADMAP.md) for the full phase-by-phase build log.
+→ load test — plus a second pass that found the system losing money,
+fixed it, and proved the fix twice. See [README.md](README.md) for setup
+and [ROADMAP.md](ROADMAP.md) for the full phase-by-phase build log.
