@@ -47,6 +47,12 @@ app = FastAPI(
 class CompletionRequest(BaseModel):
     prompt: str = Field(min_length=1)
     max_tokens: int = Field(default=512, ge=1, le=4096)
+    callback_url: str | None = Field(
+        default=None,
+        description="If set and this request gets flagged for verification, "
+        "the verified/possibly-escalated outcome is POSTed here instead of "
+        "only being retrievable via GET /v1/completions/{request_id}.",
+    )
 
 
 class CompletionResponse(BaseModel):
@@ -65,10 +71,12 @@ class CompletionResponse(BaseModel):
     note: str = (
         "This response is always the routed (cheap-model) answer, even if "
         "verification later escalates it - GET /v1/completions/{request_id} "
-        "returns the corrected answer once verification (if sampled) "
-        "completes. Only a sample of requests are verified "
-        "(VERIFICATION_SAMPLE_RATE); a null verification_job_id means this "
-        "one wasn't sampled, or was already routed to the top-tier model."
+        "returns the corrected answer once verification (if flagged) "
+        "completes. Not every request is verified - eval.risk flags ones "
+        "likely to need it (low classifier confidence, an empty/hedging "
+        "answer) plus a small random baseline; a null verification_job_id "
+        "means this one wasn't flagged, or was already routed to the "
+        "top-tier model."
     )
 
 
@@ -134,7 +142,7 @@ def create_completion(request: CompletionRequest) -> CompletionResponse:
     async verification. Returns as soon as the routed model responds."""
     try:
         tier, response, request_id, verification_job_id = route_and_verify(
-            request.prompt, max_tokens=request.max_tokens
+            request.prompt, max_tokens=request.max_tokens, callback_url=request.callback_url
         )
     except LLMRequestError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

@@ -7,7 +7,11 @@ The API (api/main.py, via eval.pipeline.route_and_verify) enqueues a job to
 db.py's verification_jobs table and returns immediately. This worker polls
 that table, and for each claimed job reconstructs the routed response and
 runs eval.verifier.verify_and_maybe_escalate — the same scoring/escalation/
-logging logic as before, just invoked from a different process.
+logging logic as before, just invoked from a different process. If the job
+carries a callback_url, the outcome is also POSTed there - see
+docs/completion_polling.md for why polling alone doesn't close the brief's
+"return the better result" loop, and _send_callback below for the push
+alternative.
 
 Usage:
     python -m eval.verification_worker            # persistent polling loop
@@ -16,8 +20,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import time
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse
 
 import db
 from eval.verifier import VerificationResult, verify_and_maybe_escalate
@@ -25,6 +33,7 @@ from llm_clients import Response
 
 POLL_INTERVAL_SECONDS = 2.0
 DEFAULT_DRAIN_WORKERS = 4
+CALLBACK_TIMEOUT_SECONDS = 5.0
 
 
 def _job_to_response(job: dict) -> Response:
@@ -38,14 +47,56 @@ def _job_to_response(job: dict) -> Response:
     )
 
 
+def _send_callback(callback_url: str, request_id: int, result: VerificationResult) -> None:
+    """Best-effort POST of the verification outcome to ``callback_url`` -
+    the push alternative to making the caller poll
+    GET /v1/completions/{request_id}. Never raises: a caller's unreachable
+    or misbehaving endpoint must not be allowed to break verification
+    itself, which is why this is logged and swallowed, not retried or
+    propagated. No SSRF protection (allowlisting destination hosts, blocking
+    internal/link-local addresses) - fine for a demo callback URL you
+    control yourself, a real deployment accepting third-party callback URLs
+    would need it.
+    """
+    parsed = urlparse(callback_url)
+    if parsed.scheme not in ("http", "https"):
+        print(f"callback for request {request_id} skipped: bad scheme in {callback_url!r}")
+        return
+
+    payload = json.dumps(
+        {
+            "request_id": request_id,
+            "status": "checked",
+            "output_text": result.final_output,
+            "model_id": result.final_model_id,
+            "escalated": result.escalated,
+            "quality_score": result.quality_score,
+            "passed": result.passed,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        callback_url, data=payload, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=CALLBACK_TIMEOUT_SECONDS) as resp:
+            print(f"callback for request {request_id} -> {callback_url} ({resp.status})")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        print(f"callback for request {request_id} -> {callback_url} failed: {exc}")
+
+
 def process_one(job: dict) -> VerificationResult:
-    """Run verification for a single claimed job, mark it done, return the result."""
+    """Run verification for a single claimed job, mark it done, fire the
+    callback if one was requested, and return the result."""
     routed_response = _job_to_response(job)
     try:
         result = verify_and_maybe_escalate(
             job["request_id"], job["prompt"], job["tier"], routed_response
         )
         db.mark_job_done(job["id"])
+        callback_url = job.get("callback_url")
+        if callback_url:
+            _send_callback(callback_url, job["request_id"], result)
         return result
     except Exception as exc:  # noqa: BLE001 - a bad job shouldn't kill the worker
         db.mark_job_error(job["id"], str(exc))

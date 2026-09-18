@@ -44,12 +44,32 @@ receive.
    `output_text: "A29184"`, `model_id: "gpt-4o"`, `escalated: true` — **the
    actual corrected answer, retrievable for the first time.**
 
-## What this still doesn't do
+## Update (2026-09-18): push, not just polling
 
-This is polling, not push. The brief's "return the better result" phrasing
-reads like the caller should be handed the fix without asking again — that
-would need a webhook, a websocket, or some other channel the caller
-registers up front, none of which exists here or is specified in the brief.
-Polling is the smallest change that makes the corrected answer retrievable
-at all; a production system would likely want a real push mechanism instead
-of leaving it to the caller to know to check back.
+Polling closes "the caller *can* get the corrected answer." It doesn't
+close "the caller shouldn't have to ask again," which is what "return the
+better result" actually implies. Added a real push path: `POST
+/v1/completions` accepts an optional `callback_url`; if the request is
+flagged for verification, `eval.verification_worker` POSTs the outcome
+there itself once verification completes — same payload shape as `GET
+/v1/completions/{id}` (`request_id`, `status`, `output_text`, `model_id`,
+`escalated`, `quality_score`, `passed`).
+
+Implementation: `urllib.request` (stdlib, no new dependency), a 5-second
+timeout, and the whole thing wrapped so a caller's dead or misbehaving
+endpoint can never break verification itself — logged and swallowed, not
+retried or raised. No SSRF protection (allowlisting destination hosts,
+blocking internal/link-local IPs); fine for a callback URL you control
+yourself, a real deployment accepting third-party callback URLs would need
+it — noted as a real gap, not silently skipped.
+
+**Verified live** with a real local HTTP receiver (not a mock): sent an
+order-number extraction prompt with `callback_url` set, `llama3` answered
+"The order number is: 7742" (dropped the leading letter — the same class
+of error as the polling test above), the webhook received the corrected
+payload automatically: `{"request_id": 1697, "status": "checked",
+"output_text": "B7742", "model_id": "gpt-4o", "escalated": true, ...}` —
+delivered without the caller ever asking again.
+
+Polling (`GET /v1/completions/{id}`) still exists for callers who don't
+want to run a receiver. Both are documented, both are real.
