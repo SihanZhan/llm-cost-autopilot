@@ -5,15 +5,19 @@ scores each request's complexity, routes it to the **cheapest model that can
 handle it at acceptable quality**, and continuously verifies that those routing
 decisions were correct.
 
-> **500 live requests, measured end to end: 20.3% cheaper than an all-GPT-4o
-> baseline — after finding, on an earlier identical run, that the same
-> system actually cost 2.6% *more* than the baseline once verification was
-> counted honestly.** Checking every answer against the top-tier model cost
-> more than it saved; fixing that (sample instead of checking everything,
-> replace a bad quality check with a real one) turned a real loss into a
-> real 20.3% saving, confirmed on another live 500-request run. Full
-> before/after breakdown in [CASE_STUDY.md](CASE_STUDY.md) and
-> [docs/cost_fix_results.md](docs/cost_fix_results.md).
+> **Live-tested end to end: 27.0% cheaper than an all-GPT-4o baseline —
+> after finding, on an earlier run, that the same system actually cost 2.6%
+> *more* than the baseline once verification was counted honestly.**
+> Checking every answer against the top-tier model cost more than it saved;
+> fixing that (sample instead of checking everything, replace a bad quality
+> check with a real one, then replace flat random sampling with risk-based
+> sampling — check the ones that look wrong, not a random fifth of
+> everything) took a real loss to a real 27.0% saving. Escalated answers
+> are also now actually retrievable (`GET /v1/completions/{id}`) or
+> pushed to a callback URL, closing a gap where "auto-escalation" only
+> ever updated internal stats. Full breakdown in [CASE_STUDY.md](CASE_STUDY.md),
+> [docs/cost_fix_results.md](docs/cost_fix_results.md), and
+> [docs/risk_based_verification.md](docs/risk_based_verification.md).
 
 ## The problem
 
@@ -96,7 +100,8 @@ flowchart LR
 | [eval/quality.py](eval/quality.py) | Per-use-case quality scoring: extraction typed-field coverage (emails, dates, amounts, ...), classification label match, summarization + general LLM-as-judge (shared judge helper, different rubrics) |
 | [eval/verifier.py](eval/verifier.py) | Scores the routed prompt's answer against the top-tier model's, auto-escalates on failure, logs every outcome — the scoring/escalation core, invoked by `eval.verification_worker` |
 | [db.py](db.py) | SQLite: the `requests` audit log (hashed prompt, tier, routed model, cost, latency, quality score, escalation — logged immediately via `log_routed_request`, filled in later by `update_verification_result` if the request is sampled) plus the `verification_jobs` queue that decouples verification from the API process |
-| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify, route, call, log immediately, and (for a `VERIFICATION_SAMPLE_RATE`-sampled subset of non-top-tier requests) enqueue a verification job; the single entry point later phases call |
+| [eval/pipeline.py](eval/pipeline.py) | `route_and_verify(prompt)` — classify (with confidence), route, call, log immediately, and (for requests `eval.risk.should_verify` flags) enqueue a verification job, optionally with a `callback_url`; the single entry point later phases call |
+| [eval/risk.py](eval/risk.py) | Decides which requests get verified: low classifier confidence, an empty/hedging answer, or a small random baseline — not a flat percentage |
 | [eval/verification_worker.py](eval/verification_worker.py) | The background worker for async verification, as a genuinely separate process from the API — polls `verification_jobs`, runs `eval.verifier` for each, logs the result. `python -m eval.verification_worker` for the persistent deployed version; `drain()` for scripts that want an immediate synchronous summary |
 | [eval/demo.py](eval/demo.py) | Runs the pipeline over the 10 baseline prompts and reports pass/fail/escalation per prompt |
 | [classifier/feedback.py](classifier/feedback.py) | Harvests escalations from the verification log into `failure_feedback.jsonl`, which `classifier.train` folds into the next retrain |
@@ -110,7 +115,8 @@ flowchart LR
 | [eval/report_charts.py](eval/report_charts.py) | Renders the dashboard's key numbers to static PNGs (matplotlib) from the same `stats.compute_stats()` data — no browser needed |
 | [CASE_STUDY.md](CASE_STUDY.md) | The portfolio writeup: headline number, system design, the escalation-cost/feedback-loop finding traced to its root cause, and the fix validated against it |
 | [docs/cost_fix_results.md](docs/cost_fix_results.md) | The before/after fix writeup: sampled verification + a real `general`-bucket judge, validated on a second live 500-request run (-2.6% loss -> +20.3% real saving) |
-| [docs/completion_polling.md](docs/completion_polling.md) | `GET /v1/completions/{id}` — lets a caller actually retrieve an escalated/corrected answer, closing a real gap between the brief's "return the better result" and what escalation did before (update internal stats only) |
+| [docs/risk_based_verification.md](docs/risk_based_verification.md) | Replaces flat random sampling with risk-based checks — validated live: verification cost dropped from $0.047 to $0.003 on a 300-request run, net savings rose to 27.0% |
+| [docs/completion_polling.md](docs/completion_polling.md) | `GET /v1/completions/{id}` and an optional `callback_url` — lets a caller actually retrieve or receive an escalated/corrected answer, closing a real gap between the brief's "return the better result" and what escalation did before (update internal stats only) |
 | [ROADMAP.md](ROADMAP.md) | Six-phase build plan and progress |
 
 More modules (`router/`) land as the roadmap phases are built.
@@ -306,3 +312,24 @@ prompts — and retrained from the clean 224-prompt set alone: held-out
 accuracy landed at **97.8%**, exactly the original Phase 2 number,
 confirming the earlier accuracy drop really was the bad feedback and
 nothing else. Full breakdown: [docs/cost_fix_results.md](docs/cost_fix_results.md).
+
+**Two more fixes (2026-09-18), both prompted by pointed questions rather
+than found unprompted.** "Why is it random that you check 1-in-5, why not
+ones that don't seem right" led to replacing flat sampling with
+`eval/risk.py`: verify when the classifier itself was unsure (confidence
+< 0.6), or the answer looks empty/hedging, plus a small random baseline —
+not a fixed percentage. Live result on a 300-request run: only 14 requests
+(4.7%) needed checking, verification cost dropped from $0.047 to $0.003,
+and net savings rose to **27.0%** (vs. 20.3% under flat sampling) while
+still catching the same class of real errors. A caught bug before it ran
+live: the hedging check only matched "I'm not sure," not "I am not sure."
+See [docs/risk_based_verification.md](docs/risk_based_verification.md).
+
+Separately, "is double-checking part of the project" surfaced that
+escalation never actually reached the caller — `POST /v1/completions`
+returns before verification even starts, and a later correction only
+updated internal stats. Added `GET /v1/completions/{request_id}` to poll
+for the corrected answer, and an optional `callback_url` so
+`eval/verification_worker.py` pushes it automatically instead. Verified
+live both ways, including a real webhook receiver catching a genuine
+escalation. See [docs/completion_polling.md](docs/completion_polling.md).

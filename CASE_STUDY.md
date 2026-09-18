@@ -1,16 +1,23 @@
 # Case study: LLM Cost Autopilot
 
-**I built a system that reduced LLM API costs by 20.3% while maintaining
-98.7% quality parity with the top-tier model.**
+**I built a system that reduced LLM API costs by 27.0% while maintaining
+99.0% quality parity with the top-tier model.**
 
-> Accomplished a 20.3% reduction in LLM API spend while holding 98.7%
-> quality parity with GPT-4o, as measured by two independent 500-request
-> live load tests against real OpenAI, Anthropic, and local Llama traffic,
-> by building a complexity-based router — a 97.8%-accurate classifier
-> feeding a sampled async verification loop with LLM-as-judge scoring,
-> auto-escalation, and a feedback loop into classifier retraining — after
-> finding and fixing a hidden defect where checking every single answer
-> was itself erasing the savings it was supposed to protect.
+> Accomplished a 27.0% reduction in LLM API spend while holding 99.0%
+> quality parity with GPT-4o, as measured by live load tests against real
+> OpenAI, Anthropic, and local Llama traffic, by building a complexity-based
+> router — a 97.8%-accurate classifier feeding a risk-targeted async
+> verification loop (check the answers likely to be wrong, not a random
+> slice of everything) with LLM-as-judge scoring, auto-escalation, and a
+> feedback loop into classifier retraining — after finding and fixing a
+> hidden defect where checking every single answer was itself erasing the
+> savings it was supposed to protect, then a second time replacing flat
+> random checking with targeted checking once that fix was proven.
+
+*(20.3% / 98.7% under the first fix — flat 20% random sampling, confirmed
+on two independent 500-request runs — is itself a real, superseded result;
+27.0% / 99.0% is what the current default (risk-based sampling) produced on
+a 300-request live run. See "The fix, twice" below for both, in order.)*
 
 Most teams running LLMs in production send every request — a one-line
 extraction and a multi-step planning task alike — to the same frontier
@@ -169,7 +176,7 @@ than any single percentage: **a system with real automated feedback is not
 automatically a system that's getting better** — you have to watch what it's
 actually learning from.
 
-## The fix, validated on another live 500-request run
+## The first fix, validated on another live 500-request run
 
 Two changes, targeting the two root causes above:
 
@@ -204,24 +211,62 @@ feedback and nothing else.
 Full breakdown, including what each of the two fixes contributed
 separately: [docs/cost_fix_results.md](docs/cost_fix_results.md).
 
+## The second fix: check the ones that look wrong, not a random fifth
+
+The first fix's sampling was still a coin flip — verify a random 20% of
+non-top-tier requests, no matter how confident the classifier was or how
+clean the answer looked. Directly asked why, since the obvious alternative
+is targeting the checks instead of scattering them randomly.
+
+`eval/risk.py::should_verify` replaced the flat rate with three signals,
+cheapest first: the classifier's own confidence in the tier it picked
+(logistic regression / random forest both expose `predict_proba` — below
+0.6 is a close call, worth checking), whether the routed answer looks empty
+or hedges ("I'm not sure," "as an AI," ...), and a small 5% random baseline
+underneath both — kept specifically so the escalation-rate metric stays an
+honest estimate of the true error rate instead of only measuring how often
+the risk signals were right to be suspicious.
+
+Live result, another full run (300 requests this time, same corpus):
+
+| | flat 20% sampling | risk-based |
+|---|---:|---:|
+| requests checked | ~20% of non-top-tier | **14/300 (4.7%)** |
+| verification cost | $0.047 (500-req run) | **$0.003** (300-req run) |
+| **true net cost reduction** | +20.3% | **+27.0%** |
+| escalation rate | 1.2%–1.4% | 1.0% |
+
+Net savings now sit within a point of the routing-only ceiling (27.7%)
+instead of several points below it — verification overhead went from a
+real, measurable cost to almost nothing, while still catching the same
+class of real errors (a Roman-numeral conversion, a dropped character in an
+extracted order number) on a fraction of the checking budget. A bug in the
+hedge-detection regex ("I'm not sure" matched, "I am not sure" didn't) was
+caught by testing it against hand-built cases before it ever touched a real
+request — same discipline as every other fix in this project.
+
+This result is from one 300-request run, not two independent 500-request
+runs like the first fix — treat the exact number as credible, not
+double-confirmed. Full writeup:
+[docs/risk_based_verification.md](docs/risk_based_verification.md).
+
 ## What's real vs. what would come next
 
 Everything above is measured, not projected: live-tested against real
-provider APIs across *three* full-scale (500-request) runs — one that found
-the problem, one that confirmed the fix, one more that confirmed the fix
-again independently (20.35% vs. 20.32% net — same result, not a lucky
-sample) — every claim traceable to a script anyone can re-run
-(`python -m eval.load_test`, `python -m eval.report_charts`). What this
-project doesn't claim: it isn't running in production, the Docker
-deployment is config-validated but not container-tested end-to-end (no
-daemon in this build environment) — though the underlying multi-process
-architecture it depends on (a separate verification-worker process) was
-verified live outside Docker — and verification sampling is currently
-uniform random rather than risk-targeted (check the ones likely to be
-wrong, not a random fifth of everything), a real, identified next
-improvement that isn't built.
+provider APIs across four full-scale live runs (two 500-request, one
+300-request, plus the earlier discovery run) — every claim traceable to a
+script anyone can re-run (`python -m eval.load_test`,
+`python -m eval.report_charts`). What this project doesn't claim: it isn't
+running in production, and the Docker deployment is config-validated but
+not container-tested end-to-end (no daemon in this build environment) —
+though the underlying multi-process architecture it depends on (a separate
+verification-worker process, and now a webhook callback) was verified live
+outside Docker. The risk-based sampling result (27.0%) is from a single
+300-request run, not independently double-confirmed the way the first
+fix's 20.3% was on two separate 500-request runs — a real, stated
+difference in confidence between the two numbers, not glossed over.
 
-Three gaps between the brief and the build were found and closed along the
+Four gaps between the brief and the build were found and closed along the
 way, each caught by testing actual behavior rather than trusting that the
 code looked right:
 - Verification runs as a genuinely separate worker process, not an
@@ -229,10 +274,13 @@ code looked right:
 - Extraction verification checks real typed fields instead of comparing
   raw output strings. See [docs/brief_conformance_fixes.md](docs/brief_conformance_fixes.md).
 - Escalation now actually produces a retrievable corrected answer
-  (`GET /v1/completions/{id}`) — before, "auto-escalation... return the
-  better result" only ever updated internal stats; the caller who asked
-  the question had no way to receive the fix. See
-  [docs/completion_polling.md](docs/completion_polling.md).
+  (`GET /v1/completions/{id}`, or pushed to a `callback_url`) — before,
+  "auto-escalation... return the better result" only ever updated internal
+  stats; the caller who asked the question had no way to receive the fix.
+  See [docs/completion_polling.md](docs/completion_polling.md).
+- Verification sampling is risk-based, not a flat random rate — check the
+  ones likely to be wrong, not a random fifth of everything. See
+  [docs/risk_based_verification.md](docs/risk_based_verification.md).
 
 ## Repo
 
