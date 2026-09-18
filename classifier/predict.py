@@ -27,9 +27,22 @@ def _load() -> dict:
 
 def predict_tier(prompt: str) -> int:
     """Return the predicted complexity tier (1, 2, or 3) for ``prompt``."""
+    return predict_tier_with_confidence(prompt)[0]
+
+
+def predict_tier_with_confidence(prompt: str) -> tuple[int, float]:
+    """Return ``(tier, confidence)`` - confidence is the model's own
+    probability for the tier it picked (both logistic regression and random
+    forest expose ``predict_proba``), used by eval.risk to decide which
+    requests are worth verifying rather than sampling blindly."""
     bundle = _load()
     features = [feature_vector(prompt)]
-    return int(bundle["model"].predict(features)[0])
+    model = bundle["model"]
+    proba = model.predict_proba(features)[0]
+    idx = int(proba.argmax())
+    tier = int(model.classes_[idx])
+    confidence = float(proba[idx])
+    return tier, confidence
 
 
 if __name__ == "__main__":

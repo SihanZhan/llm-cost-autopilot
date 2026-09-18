@@ -10,12 +10,12 @@ matching the brief's architecture. This script drains that queue itself
 afterward (same worker code, run in-process for convenience) so it can
 still print an immediate, complete summary.
 
-Forces VERIFICATION_SAMPLE_RATE=1.0 (verify every prompt) rather than the
-production default (eval.pipeline.DEFAULT_VERIFICATION_SAMPLE_RATE, 20%) -
-with only 10 prompts, sampling would leave most of this demo's output
-empty. eval.seed_dashboard and eval.load_test use the real default instead,
-since demonstrating the sampled system's actual cost profile is the point
-of those.
+Forces FORCE_VERIFY_ALL=1 (verify every prompt) rather than the production
+default (eval.risk.should_verify's risk-based sampling) - with only 10
+prompts, letting the risk signals decide would leave most of this demo's
+output empty. eval.seed_dashboard and eval.load_test use the real default
+instead, since demonstrating the sampled system's actual cost profile is
+the point of those.
 
 Usage:
     python -m eval.demo
@@ -26,7 +26,7 @@ import json
 import os
 from pathlib import Path
 
-os.environ.setdefault("VERIFICATION_SAMPLE_RATE", "1.0")
+os.environ.setdefault("FORCE_VERIFY_ALL", "1")
 
 from eval.pipeline import route_and_verify  # noqa: E402
 from eval.verification_worker import drain  # noqa: E402

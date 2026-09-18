@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS verification_jobs (
     routed_cost REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     claimed_at TEXT,
-    error TEXT
+    error TEXT,
+    sample_reason TEXT NOT NULL DEFAULT '',
+    callback_url TEXT
 );
 """
 
@@ -82,6 +84,15 @@ def init_db(path: Path = DB_FILE) -> None:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(requests)")}
         if "final_output" not in cols:
             conn.execute("ALTER TABLE requests ADD COLUMN final_output TEXT NOT NULL DEFAULT ''")
+        # migration: verification_jobs predates sample_reason (added when
+        # sampling became risk-based instead of a flat random rate).
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(verification_jobs)")}
+        if "sample_reason" not in cols:
+            conn.execute(
+                "ALTER TABLE verification_jobs ADD COLUMN sample_reason TEXT NOT NULL DEFAULT ''"
+            )
+        if "callback_url" not in cols:
+            conn.execute("ALTER TABLE verification_jobs ADD COLUMN callback_url TEXT")
 
 
 def baseline_cost_for(input_tokens: int, output_tokens: int) -> float:
@@ -199,12 +210,25 @@ def fetch_requests(path: Path = DB_FILE) -> list[dict]:
 
 
 def enqueue_verification_job(
-    prompt: str, tier: int, routed_response, request_id: int, path: Path = DB_FILE
+    prompt: str,
+    tier: int,
+    routed_response,
+    request_id: int,
+    sample_reason: str = "",
+    callback_url: str | None = None,
+    path: Path = DB_FILE,
 ) -> int:
     """Queue a verification job for ``routed_response`` and return its id.
 
     ``request_id`` links back to the row ``log_routed_request`` already
     created, so the worker can UPDATE it in place once verification runs.
+    ``sample_reason`` records why this request was picked (e.g.
+    "low_classifier_confidence", "risky_answer", "random_baseline") - see
+    eval.risk - so the dashboard/stats can show whether the checking budget
+    is actually going where it's likely to find something. ``callback_url``,
+    if given, is POSTed the verification outcome by the worker once it's
+    done (see eval.verification_worker) - the push alternative to polling
+    GET /v1/completions/{request_id}.
     """
     from datetime import datetime, timezone
 
@@ -214,14 +238,16 @@ def enqueue_verification_job(
             """
             INSERT INTO verification_jobs (
                 created_at, request_id, prompt, tier, routed_model_id, routed_output_text,
-                routed_input_tokens, routed_output_tokens, routed_latency, routed_cost
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                routed_input_tokens, routed_output_tokens, routed_latency, routed_cost,
+                sample_reason, callback_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(), request_id, prompt, tier,
                 routed_response.model_id, routed_response.output_text,
                 routed_response.input_tokens, routed_response.output_tokens,
-                routed_response.latency, routed_response.cost,
+                routed_response.latency, routed_response.cost, sample_reason,
+                callback_url,
             ),
         )
         return cur.lastrowid

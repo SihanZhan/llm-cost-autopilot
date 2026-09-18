@@ -33,12 +33,14 @@ services:
       - .env
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
-      # Fraction of non-top-tier requests sampled for verification (0.0-1.0).
-      # Verifying 100% of traffic is what made checking cost more than
-      # routing saved - see docs/cost_fix_results.md. Read here (not in
-      # verification-worker) because the API is what decides, per request,
-      # whether to enqueue a verification job at all.
-      - VERIFICATION_SAMPLE_RATE=0.2
+      # Which requests get verified is risk-based (eval.risk.should_verify:
+      # low classifier confidence, an empty/hedging answer, or a small
+      # random baseline), not a flat percentage - see
+      # docs/risk_based_verification.md. Set FORCE_VERIFY_ALL=1 here to
+      # check every non-top-tier request regardless of risk signals. Read
+      # here (not in verification-worker) because the API is what decides,
+      # per request, whether to enqueue a verification job at all.
+      # - FORCE_VERIFY_ALL=1
     volumes:
       - .:/app
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000
